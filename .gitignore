@@ -1,0 +1,15 @@
+# Ignore all the files in the pycache folder
+__pycache__/
+*.pyc
+
+# Ignore all the files in the Data folder
+Data/
+
+# Ignore all the files in the Models
+Saved Models/
+
+# Ignore all the wand files
+wandb/
+
+# Ignore all the images generated in the plots
+Plots/
