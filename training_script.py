@@ -66,7 +66,7 @@ def cal_validation_loss(model, validation_dataloader, lossFn, lossFn_no_reductio
 
 ## Flags
 log_wandB = False
-save_model = False
+save_model = True
 
 ## Data Setup - Setup all the parameters for logging and training
 config = {
@@ -161,21 +161,21 @@ print("Validation DF size:", extracted_validation_df.shape)
 
 #################### Code to plot the predictions ######################3
 
-model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250416_1753_PAE - sensor suit - 1 subject GYRO Data.pth"
+# model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250416_1753_PAE - sensor suit - 1 subject GYRO Data.pth"
 
-weights = torch.load(model_file, weights_only=True)
-model = PAE.Model(
-                          input_channels=config["inputs"],
-                          embedding_channels=config["phases"],
-                          time_range=config["seq_length"],
-                          window=config["training_window"]
-                         )
-model.load_state_dict(weights)
-
-
+# weights = torch.load(model_file, weights_only=True)
+# model = PAE.Model(
+#                           input_channels=config["inputs"],
+#                           embedding_channels=config["phases"],
+#                           time_range=config["seq_length"],
+#                           window=config["training_window"]
+#                          )
+# model.load_state_dict(weights)
 
 
-utility.plot_predictions(extracted_training_df, extracted_validation_df, extracted_testing_df, model, col_keys)
+
+
+# utility.plot_predictions(extracted_training_df, extracted_validation_df, extracted_testing_df, model, col_keys)
 
 
 ####################################################################################

@@ -2,14 +2,15 @@
 __pycache__/
 *.pyc
 
-# Ignore all the files in the Data folder
+# Ignore the Data folder
 Data/
 
-# Ignore all the files in the Models
+# Ignore the saved models folder
 Saved Models/
+
+# Ignore the plots folder
+Plots/
 
 # Ignore all the wand files
 wandb/
 
-# Ignore all the images generated in the plots
-Plots/

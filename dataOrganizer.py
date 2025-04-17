@@ -9,14 +9,14 @@ import pandas as pd
 ## All of the files write to a master CSV called -  
 # Path where it is saved "/home/cshah/workspaces/deepPhase based work/Data/training_sensor_suit_file"
 # Path where it is saved "/home/cshah/workspaces/deepPhase based work/Data/validation_sensor_suit_file"
-# csv_write = "/home/cshah/workspaces/deepPhase based work/Data/training_validation_sensor_suit_file.csv"
-csv_write = "/home/cshah/workspaces/deepPhase based work/Data/testing_sensor_suit_file.csv"
+csv_write = "/home/cshah/workspaces/deepPhase based work/Data/training_validation_sensor_suit_file.csv"
+# csv_write = "/home/cshah/workspaces/deepPhase based work/Data/testing_sensor_suit_file.csv"
 
 # CSV's to read from
 csv_files =  [
-# "/home/cshah/workspaces/sensorsuit/logs/04_09_2025/04_09_2025_trial_2.csv",
+"/home/cshah/workspaces/sensorsuit/logs/04_09_2025/04_09_2025_trial_2.csv",
 # "/home/cshah/workspaces/sensorsuit/logs/04_09_2025/04_09_2025_trial_4.csv"
-"/home/cshah/workspaces/sensorsuit/logs/04_09_2025/04_09_2025_trial_1.csv"
+# "/home/cshah/workspaces/sensorsuit/logs/04_09_2025/04_09_2025_trial_1.csv"
 # Add more files as needed
 ]
 
