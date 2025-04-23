@@ -21,30 +21,31 @@ class LN_v2(nn.Module):
         return y
     
 class Model(nn.Module):
-    def __init__(self, input_channels, embedding_channels, time_range, window):
+    def __init__(self, input_channels, embedding_channels, intermediate_channels, time_range, window):
         super(Model, self).__init__()
         self.input_channels = input_channels
         self.embedding_channels = embedding_channels
         self.time_range = time_range
         self.window = window
+        self.intermediate_channels = intermediate_channels
 
         self.tpi = Parameter(torch.from_numpy(np.array([2.0*np.pi], dtype=np.float32)), requires_grad=False)
         self.args = Parameter(torch.from_numpy(np.linspace(-self.window/2, self.window/2, self.time_range, dtype=np.float32)), requires_grad=False)
         self.freqs = Parameter(torch.fft.rfftfreq(time_range)[1:] * time_range / self.window, requires_grad=False) #Remove DC frequency
 
-        intermediate_channels = int(input_channels/3)
+        # intermediate_channels = int(input_channels/3)
         
-        self.conv1 = nn.Conv1d(input_channels, intermediate_channels, time_range, stride=1, padding=int((time_range - 1) / 2), dilation=1, groups=1, bias=True, padding_mode='zeros')
+        self.conv1 = nn.Conv1d(input_channels, self.intermediate_channels, time_range, stride=1, padding=int((time_range - 1) / 2), dilation=1, groups=1, bias=True, padding_mode='zeros')
         self.norm1 = LN_v2(time_range)
-        self.conv2 = nn.Conv1d(intermediate_channels, embedding_channels, time_range, stride=1, padding=int((time_range - 1) / 2), dilation=1, groups=1, bias=True, padding_mode='zeros')
+        self.conv2 = nn.Conv1d(self.intermediate_channels, embedding_channels, time_range, stride=1, padding=int((time_range - 1) / 2), dilation=1, groups=1, bias=True, padding_mode='zeros')
 
         self.fc = torch.nn.ModuleList()
         for i in range(embedding_channels):
             self.fc.append(nn.Linear(time_range, 2))
 
-        self.deconv1 = nn.Conv1d(embedding_channels, intermediate_channels, time_range, stride=1, padding=int((time_range - 1) / 2), dilation=1, groups=1, bias=True, padding_mode='zeros')
+        self.deconv1 = nn.Conv1d(embedding_channels, self.intermediate_channels, time_range, stride=1, padding=int((time_range - 1) / 2), dilation=1, groups=1, bias=True, padding_mode='zeros')
         self.denorm1 = LN_v2(time_range)
-        self.deconv2 = nn.Conv1d(intermediate_channels, input_channels, time_range, stride=1, padding=int((time_range - 1) / 2), dilation=1, groups=1, bias=True, padding_mode='zeros')
+        self.deconv2 = nn.Conv1d(self.intermediate_channels, input_channels, time_range, stride=1, padding=int((time_range - 1) / 2), dilation=1, groups=1, bias=True, padding_mode='zeros')
 
     #Returns the frequency for a function over a time window in s
     def FFT(self, function, dim):

@@ -37,11 +37,17 @@ class dataLoader_seq_loader(Dataset):
         
         # Extract all col with that sequence length of data
         rows = self.original_df.iloc[row_start_idx:row_end_idx, :].values
-        
+               
         # Inputs ( Transpose it to give cols, sequence length data)
         inputs = torch.tensor(rows, dtype=torch.float32).T
+        
+        # Window mean
+        window_mean = inputs.mean(dim=0, keepdim=True)
+        
+        # Window mean centering
+        inputs_centered = inputs - window_mean
 
-        return inputs
+        return inputs_centered
         
         
         

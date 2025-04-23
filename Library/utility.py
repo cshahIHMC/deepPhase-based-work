@@ -58,35 +58,36 @@ def loss_plot(training_losses, validation_losses, testing_losses, name):
     plt.figure(figsize=(8, 5))
     plt.plot(epochs, training_losses, label='Training Loss', linewidth=2)
     plt.plot(epochs, validation_losses, label='Validation Loss', linewidth=2)
-    plt.plot(epochs, testing_losses, label='Testing Loss', linewidth=2)
+    # plt.plot(epochs, testing_losses, label='Testing Loss', linewidth=2)
 
-    plt.title('Training vs Validation Loss vs Testing Loss over Epochs')
+    plt.title('Training vs Validation Loss over Epochs')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
+    plt.ylim(0,0.6)
     plt.savefig(name, dpi=300, bbox_inches='tight')
-    plt.show()
+    # plt.show()
     
     
 # Fancy plotting function to plot the predictions across the different datasets
-def plot_predictions(training_df, validation_df, testing_df, model, data_keys):
+def plot_predictions(training_df, validation_df, model, data_keys, folder_name):
     
     ## Extract the slice of data to plot
-    training_plot = training_df.iloc[2531:3131]
-    validation_plot = validation_df.iloc[1990:2590]
-    testing_plot = testing_df.iloc[1025:1625]
+    training_plot = training_df.iloc[2531:3431]
+    validation_plot = validation_df.iloc[1990:2890]
+    # testing_plot = testing_df.iloc[1025:1625]
     
-    file_name = "Plots/training_prediction.png"
+    file_name = "Plots/" + folder_name + "_training_prediction.png"
     plot_one_df_prediction(training_plot, model, file_name, training_df.columns, data_keys )
     
-    file_name = "Plots/validation_prediction.png"
+    file_name = "Plots/" + folder_name + "_validation_prediction.png"
     plot_one_df_prediction(validation_plot, model, file_name, validation_df.columns, data_keys) 
 
     
-    file_name = "Plots/testing_prediction.png"
-    plot_one_df_prediction(testing_plot, model, file_name, testing_df.columns, data_keys)
+    # file_name = "Plots/testing_prediction.png"
+    # plot_one_df_prediction(testing_plot, model, file_name, testing_df.columns, data_keys)
     
     
     
@@ -102,13 +103,13 @@ def plot_one_df_prediction(df, model, file_name, col_names, data_keys):
     
     
     step_increments = 20
-    end_plot_timestep = 300
+    end_plot_timestep = 450
     with torch.no_grad():
         
         for j in range(0,end_plot_timestep,step_increments):
             
             start_index = j
-            end_index = j+151
+            end_index = j+301
         
             input = df.iloc[start_index:end_index]
         
@@ -138,7 +139,7 @@ def plot_one_df_prediction(df, model, file_name, col_names, data_keys):
                 else:
                     ax.plot(df.index[start_index:end_index],output_df.iloc[:,i], linewidth=1, alpha=0.75)
                 
-                ax.set_ylim(-10,6)
+                ax.set_ylim(-10,8)
                 
                 # Name of the Sub Plot 
                 

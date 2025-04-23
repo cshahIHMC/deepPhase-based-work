@@ -65,13 +65,13 @@ def cal_validation_loss(model, validation_dataloader, lossFn, lossFn_no_reductio
 
 
 ## Flags
-log_wandB = False
+log_wandB = True
 save_model = True
 
 ## Data Setup - Setup all the parameters for logging and training
 config = {
-    "training_tag": "PAE - sensor suit - 1 subject GYRO Data",
-    "project_name": "PAE - Sensor suit Data",
+    "training_tag": "PAE - sensor suit Walking Data - 300 time horizon - 6 phase Channels Conv - 24x16xphase",
+    "project_name": "PAE - Sensor suit Walking Data",
     "epochs": 25,
     "batch_size": 32,
     "num_workers": 8,
@@ -79,11 +79,12 @@ config = {
     "lr": 1e-4,
     "dropout": 0.0,
     "dataset": "IHMC Senorsuit",
-    "seq_length": 151,
+    "seq_length": 301,
     "inputs": 24,
     "outputs": 24,
-    "phases": 4,
-    "training_window": 1.0, # How many seconds of data you are reviewing
+    "phases": 6,
+    "intermediate_channels": 16,
+    "training_window": 2.0, # How many seconds of data you are reviewing
     "data_recorded_rate": 150 # 
 }
 
@@ -95,24 +96,28 @@ if log_wandB:
     project_name = config["project_name"]
     
 ## Path to the data file
-training_csv_path = "/home/cshah/workspaces/deepPhase based work/Data/training_validation_sensor_suit_file.csv"
-testing_csv_path = "/home/cshah/workspaces/deepPhase based work/Data/testing_sensor_suit_file.csv"
+# training_csv_path = "/home/cshah/workspaces/deepPhase based work/Data/training_validation_sensor_suit_file.csv"
+# testing_csv_path = "/home/cshah/workspaces/deepPhase based work/Data/testing_sensor_suit_file.csv"
+
+csv_path = "/home/cshah/workspaces/deepPhase based work/Data/04_21_2025_walking_data.csv"
 
 # Read the csv file into a pandas data frame
-data = pd.read_csv(training_csv_path)
+data = pd.read_csv(csv_path)
+print(len(data))
 
 
-range_indices = list(range(0, 10700)) + list(range(17000, len(data)))
+# range_indices = list(range(0, 10700)) + list(range(17000, len(data)))
 
 
-training_df = data.iloc[range_indices].reset_index(drop=True)
-validation_df = data.iloc[10700:17000].reset_index(drop=True)
-testing_df = pd.read_csv(testing_csv_path)
+training_df = data.iloc[0:179580].reset_index(drop=True)
+validation_df = data.iloc[179580:].reset_index(drop=True)
+# testing_df = pd.read_csv(testing_csv_path)
+# testing_df = 
 
 # Checking the Size of the data frame
 print("Training DF size:", training_df.shape)
 print("Validation DF size:", validation_df.shape)
-print("Testing DF size:", testing_df.shape)
+# print("Testing DF size:", testing_df.shape)
 
 data_keys = {
     "back": "imu3",
@@ -138,7 +143,7 @@ col_keys = {
 
 extracted_training_df = utility.extract_data(training_df, data_keys)
 extracted_validation_df = utility.extract_data(validation_df, data_keys)
-extracted_testing_df = utility.extract_data(testing_df, data_keys)
+# extracted_testing_df = utility.extract_data(testing_df, data_keys)
 
 
 
@@ -154,19 +159,20 @@ col_to_modify = ["R_insole_gyro_x", "R_insole_gyro_y" , "R_insole_gyro_z",
 for col in col_to_modify:
     extracted_training_df[col] = extracted_training_df[col] * np.pi / 180
     extracted_validation_df[col] = extracted_validation_df[col] * np.pi / 180
-    extracted_testing_df[col] = extracted_testing_df[col] * np.pi / 180
+    # extracted_testing_df[col] = extracted_testing_df[col] * np.pi / 180
 
 print("Validation DF size:", extracted_validation_df.shape)
 
 
 #################### Code to plot the predictions ######################3
 
-# model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250416_1753_PAE - sensor suit - 1 subject GYRO Data.pth"
+# model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250422_1735_PAE - sensor suit Walking Data - 300 time horizon - 6 phase Channels.pth"
 
 # weights = torch.load(model_file, weights_only=True)
 # model = PAE.Model(
 #                           input_channels=config["inputs"],
 #                           embedding_channels=config["phases"],
+#                           intermediate_channels=config["intermediate_channels"],
 #                           time_range=config["seq_length"],
 #                           window=config["training_window"]
 #                          )
@@ -175,7 +181,7 @@ print("Validation DF size:", extracted_validation_df.shape)
 
 
 
-# utility.plot_predictions(extracted_training_df, extracted_validation_df, extracted_testing_df, model, col_keys)
+# utility.plot_predictions(extracted_training_df, extracted_validation_df, model, col_keys, folder_name=config["training_tag"])
 
 
 ####################################################################################
@@ -183,15 +189,15 @@ print("Validation DF size:", extracted_validation_df.shape)
 
 
 ##################################### Training Code #################################################
-## Load the data in a dataset and a dataloader
+# Load the data in a dataset and a dataloader
 training_dataset = dataLoader_seq_loader(extracted_training_df, config["seq_length"])
 training_dataloader = DataLoader(training_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=config["num_workers"])
 
 validation_dataset = dataLoader_seq_loader(extracted_validation_df, config["seq_length"])
 validation_dataloader = DataLoader(validation_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
 
-testing_dataset = dataLoader_seq_loader(extracted_testing_df, config["seq_length"])
-testing_dataloader = DataLoader(testing_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
+# testing_dataset = dataLoader_seq_loader(extracted_testing_df, config["seq_length"])
+# testing_dataloader = DataLoader(testing_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
 
 # utility.plot_df(training_dataset.original_df)
 # print(training_dataset.mean)
@@ -217,6 +223,7 @@ print("Initializing a PAE")
 model = utility.ToDevice(PAE.Model(
                           input_channels=config["inputs"],
                           embedding_channels=config["phases"],
+                          intermediate_channels=config["intermediate_channels"],
                           time_range=config["seq_length"],
                           window=config["training_window"]
                          ))
@@ -295,23 +302,23 @@ for epoch in range(epochs):
     individual_losses.append(individual_loss)
     print(f'Epoch [{epoch+1}/{epochs}], Validation Loss: {val_loss}')
     
-    test_loss, individual_test_loss = cal_validation_loss(model, testing_dataloader, lossFn, lossFn_no_reduction)
-    testing_losses.append(test_loss)
-    individual_test_losses.append(individual_test_loss)
-    print(f'Epoch [{epoch+1}/{epochs}], Testing Loss: {test_loss}')
+    # test_loss, individual_test_loss = cal_validation_loss(model, testing_dataloader, lossFn, lossFn_no_reduction)
+    # testing_losses.append(test_loss)
+    # individual_test_losses.append(individual_test_loss)
+    # print(f'Epoch [{epoch+1}/{epochs}], Testing Loss: {test_loss}')
 
     if log_wandB:
         wandb.log({"train/train_loss": train_loss,
                     "train/epoch": epoch,
                     "val/val_loss": val_loss,
-                    "val/epoch":epoch,
-                    "test/test_loss": test_loss,
-                    "test/epoch":epoch}) 
+                    "val/epoch":epoch})
+                    # "test/test_loss": test_loss,
+                    # "test/epoch":epoch}) 
 
 print('Finished Training')
 
 # Option to plot loss plot
-file_name = "Plots/loss_plot.png"
+file_name = "Plots/" + config["training_tag"] + "_loss_plot.png"
 utility.loss_plot(training_losses, validation_losses, testing_losses, file_name)
 
 if log_wandB:
