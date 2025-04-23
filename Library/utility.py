@@ -169,5 +169,5 @@ def plot_one_df_prediction(df, model, file_name, col_names, data_keys):
     fig.suptitle(file_name)
 
     plt.tight_layout()
-    # plt.show()
-    plt.savefig(file_name, dpi=300, bbox_inches='tight')
+    plt.show()
+    # plt.savefig(file_name, dpi=300, bbox_inches='tight')
