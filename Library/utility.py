@@ -6,6 +6,7 @@ plot stuff or writing or processing data, misc helper functions
 import torch
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Check if the GPU is available and put the object on the GPU
 def ToDevice(x):
@@ -51,14 +52,18 @@ def plot_df(df, normalized_df):
     plt.show()
     
 # Simple function to plot loss plot after training
-def loss_plot(training_losses, validation_losses, testing_losses, name):
+def loss_plot(training_losses, validation_losses=None, testing_losses=None, plot_name=""):
     
     epochs = range(1, len(training_losses) + 1,1)
 
     plt.figure(figsize=(8, 5))
     plt.plot(epochs, training_losses, label='Training Loss', linewidth=2)
-    plt.plot(epochs, validation_losses, label='Validation Loss', linewidth=2)
-    # plt.plot(epochs, testing_losses, label='Testing Loss', linewidth=2)
+    
+    if validation_losses is not None:
+        plt.plot(epochs, validation_losses, label='Validation Loss', linewidth=2)
+    
+    if testing_losses is not None:
+        plt.plot(epochs, testing_losses, label='Testing Loss', linewidth=2)
 
     plt.title('Training vs Validation Loss over Epochs')
     plt.xlabel('Epoch')
@@ -67,7 +72,7 @@ def loss_plot(training_losses, validation_losses, testing_losses, name):
     plt.grid(True)
     plt.tight_layout()
     plt.ylim(0,0.6)
-    plt.savefig(name, dpi=300, bbox_inches='tight')
+    plt.savefig(plot_name, dpi=300, bbox_inches='tight')
     # plt.show()
     
     
@@ -169,5 +174,50 @@ def plot_one_df_prediction(df, model, file_name, col_names, data_keys):
     fig.suptitle(file_name)
 
     plt.tight_layout()
-    plt.show()
-    # plt.savefig(file_name, dpi=300, bbox_inches='tight')
+    # plt.show()
+    plt.savefig(file_name, dpi=300, bbox_inches='tight')
+
+
+
+# Function to calculate the PAE validation loss
+def cal_validation_loss(model, validation_dataloader, lossFn, lossFn_no_reduction):
+    model.eval()
+    
+    val_loss = 0.0
+    individual_losses = np.zeros(24, dtype=np.float32)
+    
+    # model_input = torch.tensor([])
+    # model_prediction = torch.tensor([])
+    
+    with torch.no_grad():
+        for batch in validation_dataloader:
+            
+            PAE_inputs = batch
+            PAE_inputs = ToDevice(PAE_inputs)
+                        
+            # Predict
+            outputs, latent, signal, params  = model(PAE_inputs)
+        
+            # Flattening the outputs and inputs and calculating the loss
+            flattened_inputs = PAE_inputs.reshape(PAE_inputs.shape[0], -1)
+            flattened_outputs = outputs.reshape(outputs.shape[0], -1)
+        
+            # Calculate Total Loss
+            loss = lossFn(flattened_inputs, flattened_outputs)
+            
+            # Calculate running loss
+            val_loss += loss.item() * PAE_inputs.size(0)
+            
+            # Calculate Individual Loss, first across sequence length and then across batches
+            individual_loss = lossFn_no_reduction(PAE_inputs, outputs)
+            individual_loss_across_sequence_length = individual_loss.mean(2)
+            individual_loss_across_batch = individual_loss_across_sequence_length.mean(0)
+            
+            individual_losses = individual_losses + ( Item(individual_loss_across_batch).numpy() * PAE_inputs.size(0))
+        
+        val_loss = val_loss / len(validation_dataloader.dataset)
+        individual_losses = individual_losses / len(validation_dataloader.dataset)            
+        
+        
+    return val_loss, individual_losses
+ 
