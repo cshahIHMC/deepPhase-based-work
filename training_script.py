@@ -8,7 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from DataLoader.data_loader_seq_loader import dataLoader_seq_loader
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, Subset
 from Models import PAE
 import torch.optim as optim
 import torch.nn as nn
@@ -31,7 +31,7 @@ def parameter_setup(file_name, project_name):
         "seq_length": 301,
         "inputs": 24,
         "outputs": 24,
-        "phases": 6,
+        "phases": 8,
         "intermediate_channels": 16,
         "training_window": 2.0, # How many seconds of data you are reviewing
         "data_recorded_rate": 150 # 
@@ -105,7 +105,7 @@ def setup_datasets(file_path, joint_imu_map, config):
     validation_dataset = dataLoader_seq_loader(extracted_validation_df, config["seq_length"])
     
     
-    return training_dataset, validation_dataset
+    return training_dataset, validation_dataset, extracted_training_df.columns
     
 ## Training Function
 def train_model(model, config, training_dataloader, validation_dataloader, log_wandB=False):
@@ -190,15 +190,31 @@ def train_model(model, config, training_dataloader, validation_dataloader, log_w
     return training_losses, validation_losses
 
 
+def plot_model_predictions(training_dataloader, validation_dataloader, model_file, imu_joint_map, config, col_names, folder_name):
+    
+    weights = torch.load(model_file, weights_only=True)
+    loaded_model = PAE.Model(
+                          input_channels=config["inputs"],
+                          embedding_channels=config["phases"],
+                          intermediate_channels=config["intermediate_channels"],
+                          time_range=config["seq_length"],
+                          window=config["training_window"]
+                         )
+    loaded_model.load_state_dict(weights)
+    
+    utility.plot_predictions(training_dataloader, validation_dataloader, loaded_model, imu_joint_map, folder_name, col_names)
 
 def main():
    
     # Logging Flag
     log_wandB = False
     
-    # file_name = "PAE - sensor suit Walking Data - 300 time horizon - 6 phase Channels Conv - 24x16xphase"
-    file_name = "trial"
+    file_name = "PAE - sensor suit Walking Data - 300 time horizon - 6 phase Channels Conv - 24x16xphase"
     project_name = "PAE - Sensor suit Walking Data"
+    
+    # Prediction_Plotting_Slice
+    training_prediction_start = 2531
+    validation_prediction_start = 1990
     
         
     # Setup all the system paramters
@@ -213,10 +229,18 @@ def main():
     # Data setup
     data_path = "/home/cshah/workspaces/deepPhase based work/Data/04_21_2025_walking_data.csv"
     
-    training_dataset, validation_dataset = setup_datasets( file_path=data_path, joint_imu_map=joint_imu_map, config=config)
+    training_dataset, validation_dataset, col_names = setup_datasets( file_path=data_path, joint_imu_map=joint_imu_map, config=config)
     
     training_dataloader = DataLoader(training_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=config["num_workers"])
     validation_dataloader = DataLoader(validation_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
+    
+    
+    # Taking a subset of the training and validation to plot a window / slice of data
+    training_dataset_plotting = Subset(training_dataset, range(training_prediction_start, training_prediction_start+900))
+    validation_dataset_plotting = Subset(validation_dataset, range(validation_prediction_start, validation_prediction_start+900))
+    
+    training_dataloader_plotting = DataLoader(training_dataset_plotting, batch_size=1, shuffle=False, num_workers=config["num_workers"])
+    validation_dataloader_plotting = DataLoader(validation_dataset_plotting, batch_size=1, shuffle=False, num_workers=config["num_workers"])
     
     # Model Setup
     model = utility.ToDevice(PAE.Model(
@@ -239,8 +263,15 @@ def main():
     # Plot files
     # Option to plot loss plot
     testing_losses = None
-    plot_save_location = "Plots/" + config["training_tag"] + "_loss_plot.png"
+    plot_save_location = "Plots/" + config["training_tag"] 
+    loss_plot_save_location = plot_save_location + "_loss_plot.png"
     utility.loss_plot(training_losses, validation_losses, testing_losses, plot_save_location)
+    
+    # model_file = model_save_location
+    # model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250422_1447_PAE - sensor suit Walking Data - 300 time horizon - 8 phase Channels 24X16Xphase_channels convolution .pth"
+    
+    # plot_model_predictions(training_dataloader_plotting, validation_dataloader_plotting, model_file, imu_joint_map, config, col_names, plot_save_location)
+    
     
     # End wandB logging
     if log_wandB:

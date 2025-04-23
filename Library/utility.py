@@ -7,6 +7,7 @@ import torch
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+from itertools import islice
 
 # Check if the GPU is available and put the object on the GPU
 def ToDevice(x):
@@ -77,18 +78,13 @@ def loss_plot(training_losses, validation_losses=None, testing_losses=None, plot
     
     
 # Fancy plotting function to plot the predictions across the different datasets
-def plot_predictions(training_df, validation_df, model, data_keys, folder_name):
+def plot_predictions(training_dataloader, validation_dataloader, model, imu_joint_map, folder_name, col_names):
     
-    ## Extract the slice of data to plot
-    training_plot = training_df.iloc[2531:3431]
-    validation_plot = validation_df.iloc[1990:2890]
-    # testing_plot = testing_df.iloc[1025:1625]
+    training_file_name = folder_name + "_training_prediction.png"
+    plot_one_df_prediction(training_dataloader, model, training_file_name, imu_joint_map, col_names)
     
-    file_name = "Plots/" + folder_name + "_training_prediction.png"
-    plot_one_df_prediction(training_plot, model, file_name, training_df.columns, data_keys )
-    
-    file_name = "Plots/" + folder_name + "_validation_prediction.png"
-    plot_one_df_prediction(validation_plot, model, file_name, validation_df.columns, data_keys) 
+    validation_file_name = folder_name + "_validation_prediction.png"
+    plot_one_df_prediction(validation_dataloader, model, validation_file_name, imu_joint_map, col_names) 
 
     
     # file_name = "Plots/testing_prediction.png"
@@ -98,51 +94,59 @@ def plot_predictions(training_df, validation_df, model, data_keys, folder_name):
     
 
 
-def plot_one_df_prediction(df, model, file_name, col_names, data_keys):
+def plot_one_df_prediction(dataloader, model, file_name, imu_joint_map, col_names):
     
     model.eval()
-    fig, axs = plt.subplots(3, 8, figsize=(30,10))
+    fig, axs = plt.subplots(3, 8, figsize=(30,10), sharey=True)
     
-    key_list = list(data_keys.keys())
-
+    key_list = list(imu_joint_map.keys())
     
-    
-    step_increments = 20
+    step = 20
     end_plot_timestep = 450
     with torch.no_grad():
         
-        for j in range(0,end_plot_timestep,step_increments):
+        for j, batch in enumerate(islice(dataloader, 0, end_plot_timestep, step)):
             
-            start_index = j
-            end_index = j+301
-        
-            input = df.iloc[start_index:end_index]
-        
-
+            start_index = j*step
+            
+            end_index = start_index + 301
+            
             # Transpose and convert to tensor
-            input_tensor = torch.tensor(input.T.values, dtype=torch.float32)
-            input_tensor = input_tensor.unsqueeze(0)
+            input_tensor = batch
 
             output,_,_,_ = model(input_tensor)
         
             output = output.squeeze(0)
+            input = input_tensor.squeeze(0)
     
             output_df = pd.DataFrame(output.T.numpy())
+            input_df = pd.DataFrame(input.T.numpy())
             
             for i in range(24):
                 row = i % 3
                 col = i // 3
                 ax = axs[row, col]
             
-                if j==0: ax.plot(df.iloc[:end_plot_timestep, i], linewidth=2, color="black")  # Plot the i-th column
+                
+                
                 
                 if end_index>=end_plot_timestep: 
                     
                     value_over = end_index - end_plot_timestep
                     stop_plot = len(output_df) - value_over
-                    ax.plot(df.index[start_index:end_plot_timestep],output_df.iloc[:stop_plot,i], linewidth=1, alpha=0.75)
+                    ax.plot(dataloader.dataset.indices[start_index:end_plot_timestep],output_df.iloc[:stop_plot,i], linewidth=1, alpha=0.75)
+                    
+                    # Plot the ground truth
+                    # TODO - Right now it plots lines on top of each other - Only plot once
+                    ax.plot(dataloader.dataset.indices[start_index:end_plot_timestep], input_df.iloc[:stop_plot, i], linewidth=1, color="black")  # Plot the i-th column
+                
                 else:
-                    ax.plot(df.index[start_index:end_index],output_df.iloc[:,i], linewidth=1, alpha=0.75)
+                    ax.plot(dataloader.dataset.indices[start_index:end_index],output_df.iloc[:,i], linewidth=1, alpha=0.75)
+                    
+                     # Plot the ground truth
+                     # TODO - Right now it plots lines on top of each other - Only plot once
+                    ax.plot(dataloader.dataset.indices[start_index:end_index], input_df.iloc[:end_index, i], linewidth=1, color="black")  # Plot the i-th column
+                
                 
                 ax.set_ylim(-10,8)
                 
@@ -155,7 +159,7 @@ def plot_one_df_prediction(df, model, file_name, col_names, data_keys):
                     for k in key_list:
                         
                         if prefix in k:
-                            joint_name = data_keys[k]
+                            joint_name = imu_joint_map[k]
                             break
 
                     if "_l" in joint_name:
@@ -169,13 +173,13 @@ def plot_one_df_prediction(df, model, file_name, col_names, data_keys):
                     name = joint_name + " (" + col_names[i] + ")"
                     ax.set_title(name)
                     ax.tick_params(labelsize=8)
-                
-    
+            
+            
     fig.suptitle(file_name)
 
     plt.tight_layout()
-    # plt.show()
-    plt.savefig(file_name, dpi=300, bbox_inches='tight')
+    plt.show()
+    # plt.savefig(file_name, dpi=300, bbox_inches='tight')
 
 
 
@@ -220,4 +224,3 @@ def cal_validation_loss(model, validation_dataloader, lossFn, lossFn_no_reductio
         
         
     return val_loss, individual_losses
- 
