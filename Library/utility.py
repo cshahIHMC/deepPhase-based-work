@@ -178,8 +178,8 @@ def plot_one_df_prediction(dataloader, model, file_name, imu_joint_map, col_name
     fig.suptitle(file_name)
 
     plt.tight_layout()
-    plt.show()
-    # plt.savefig(file_name, dpi=300, bbox_inches='tight')
+    # plt.show()
+    plt.savefig(file_name, dpi=300, bbox_inches='tight')
 
 
 

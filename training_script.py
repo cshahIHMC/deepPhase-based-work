@@ -21,7 +21,7 @@ def parameter_setup(file_name, project_name):
     config = {
         "training_tag": file_name,
         "project_name": project_name,
-        "epochs": 1,
+        "epochs": 25,
         "batch_size": 32,
         "num_workers": 8,
         "momentum":0.9,
@@ -207,9 +207,9 @@ def plot_model_predictions(training_dataloader, validation_dataloader, model_fil
 def main():
    
     # Logging Flag
-    log_wandB = False
-    
-    file_name = "PAE - sensor suit Walking Data - 300 time horizon - 6 phase Channels Conv - 24x16xphase"
+    log_wandB = True
+    # file_name = "trial"
+    file_name = "PAE - sensor suit Walking Data - seq-length-300, 8 Phases 24x16xembedded channels conv and mean centered"
     project_name = "PAE - Sensor suit Walking Data"
     
     # Prediction_Plotting_Slice
@@ -265,12 +265,12 @@ def main():
     testing_losses = None
     plot_save_location = "Plots/" + config["training_tag"] 
     loss_plot_save_location = plot_save_location + "_loss_plot.png"
-    utility.loss_plot(training_losses, validation_losses, testing_losses, plot_save_location)
+    utility.loss_plot(training_losses, validation_losses, testing_losses, loss_plot_save_location)
     
-    # model_file = model_save_location
-    # model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250422_1447_PAE - sensor suit Walking Data - 300 time horizon - 8 phase Channels 24X16Xphase_channels convolution .pth"
+    model_file = model_save_location
+    # model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250424_1118_PAE - sensor suit Walking Data - seq-length-300, 8 Phases and mean centered.pth"
     
-    # plot_model_predictions(training_dataloader_plotting, validation_dataloader_plotting, model_file, imu_joint_map, config, col_names, plot_save_location)
+    plot_model_predictions(training_dataloader_plotting, validation_dataloader_plotting, model_file, imu_joint_map, config, col_names, plot_save_location)
     
     
     # End wandB logging
