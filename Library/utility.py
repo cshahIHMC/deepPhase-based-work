@@ -8,6 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from itertools import islice
+import sys
 
 # Check if the GPU is available and put the object on the GPU
 def ToDevice(x):
@@ -73,7 +74,7 @@ def loss_plot(training_losses, validation_losses=None, testing_losses=None, plot
     plt.grid(True)
     plt.tight_layout()
     plt.ylim(0,0.6)
-    plt.savefig(plot_name, dpi=300, bbox_inches='tight')
+    # plt.savefig(plot_name, dpi=300, bbox_inches='tight')
     # plt.show()
     
     
@@ -178,8 +179,8 @@ def plot_one_df_prediction(dataloader, model, file_name, imu_joint_map, col_name
     fig.suptitle(file_name)
 
     plt.tight_layout()
-    # plt.show()
-    plt.savefig(file_name, dpi=300, bbox_inches='tight')
+    plt.show()
+    # plt.savefig(file_name, dpi=300, bbox_inches='tight')
 
 
 
@@ -189,6 +190,12 @@ def cal_validation_loss(model, validation_dataloader, lossFn, lossFn_no_reductio
     
     val_loss = 0.0
     individual_losses = np.zeros(24, dtype=np.float32)
+    
+    # Convoluted Signal
+    all_latents = []
+    
+    # Reconstructed signal
+    all_signals = []
     
     # model_input = torch.tensor([])
     # model_prediction = torch.tensor([])
@@ -201,7 +208,7 @@ def cal_validation_loss(model, validation_dataloader, lossFn, lossFn_no_reductio
                         
             # Predict
             outputs, latent, signal, params  = model(PAE_inputs)
-        
+                    
             # Flattening the outputs and inputs and calculating the loss
             flattened_inputs = PAE_inputs.reshape(PAE_inputs.shape[0], -1)
             flattened_outputs = outputs.reshape(outputs.shape[0], -1)
@@ -218,9 +225,98 @@ def cal_validation_loss(model, validation_dataloader, lossFn, lossFn_no_reductio
             individual_loss_across_batch = individual_loss_across_sequence_length.mean(0)
             
             individual_losses = individual_losses + ( Item(individual_loss_across_batch).numpy() * PAE_inputs.size(0))
+            
+            
+            # Append all the latents and signals
+            all_latents.append(Item(latent))
+            all_signals.append(Item(signal))
+            
         
         val_loss = val_loss / len(validation_dataloader.dataset)
-        individual_losses = individual_losses / len(validation_dataloader.dataset)            
+        individual_losses = individual_losses / len(validation_dataloader.dataset)   
+          
+        latents_np = torch.cat(all_latents, dim=0).numpy()  
+        signals_np = torch.cat(all_signals, dim=0).numpy()      
         
         
-    return val_loss, individual_losses
+    return val_loss, individual_losses, latents_np, signals_np
+
+
+# Plot a numpy array with every individual component on a subplot
+def plot_conv_deconv(latents_np, signals_np):
+    
+    
+    fig, axes = plt.subplots(latents_np.shape[1], 1, figsize=(5, 10), sharex='col')
+    
+    print(latents_np.shape)
+    plot_numpy_array(axes, latents_np, label="Conv Signal")
+    plot_numpy_array(axes, signals_np, label="DeConv Signal")
+    
+    
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_numpy_array(axes, numpy_array, label):
+    
+    for i in range(numpy_array.shape[1]):
+        axes[i].plot(numpy_array[0,i], label=label)
+
+
+## Plotting function - Heavily study the function
+class PlottingWindow():
+    def __init__(self, title, ax=None, min=None, max=None, cumulativeHorizon=100, drawInterval=100):
+        plt.ion()
+        _, self.ax = plt.subplots() if ax is None else ax
+        self.Title = title
+        self.CumulativeHorizon = cumulativeHorizon
+        self.DrawInterval = drawInterval
+        self.YMin = min
+        self.YMax = max
+        self.YRange = [sys.float_info.max if min==None else min, sys.float_info.min if max==None else max]
+        self.Functions = {} #string->[History, Horizon]
+        self.Counter = 0
+
+    def Add(self, *args): #arg->(value, label)
+        for arg in args:
+            value = arg[0]
+            label = arg[1]
+            if label not in self.Functions:
+                self.Functions[label] = ([],[])
+            function = self.Functions[label]
+            function[0].append(value)
+            function[1].append(sum(function[0][-self.CumulativeHorizon:]) / len(function[0][-self.CumulativeHorizon:]))
+
+            self.YRange[0] = min(self.YRange[0], value) if self.YMin==None else self.YRange[0]
+            self.YRange[1] = max(self.YRange[1], value) if self.YMax==None else self.YRange[1]
+
+        self.Counter += 1
+        if self.Counter >= self.DrawInterval:
+            self.Counter = 0
+            self.Draw()
+
+    def Draw(self):
+        self.ax.cla()
+        self.ax.set_title(self.Title)
+        for label in self.Functions.keys():
+            function = self.Functions[label]
+            step = max(int(len(function[0])/self.DrawInterval), 1)
+            self.ax.plot(function[0][::step], label=label + " (" + str(round(self.CumulativeValue(label), 3)) + ")")
+            self.ax.plot(function[1][::step], c=(0,0,0))
+        self.ax.set_ylim(self.YRange[0], self.YRange[1])
+        self.ax.legend()
+        plt.gcf().canvas.draw_idle()
+        plt.gcf().canvas.start_event_loop(1e-5)
+
+    def Value(self, label=None):
+        if label==None:
+            return sum(x[0][-1] for x in self.Functions.values())
+        else:
+            return self.Functions[label][0][-1]
+
+    def CumulativeValue(self, label=None):
+        if label==None:
+            return sum(x[1][-1] for x in self.Functions.values())
+        else:
+            return self.Functions[label][1][-1]

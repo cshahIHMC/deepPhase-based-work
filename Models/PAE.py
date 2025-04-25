@@ -68,8 +68,10 @@ class Model(nn.Module):
     def forward(self, x):
         y = x
 
-        #Signal Embedding
-        y = y.reshape(y.shape[0], self.input_channels, self.time_range)
+        # Signal Embedding
+
+        # y = y.reshape(y.shape[0], self.input_channels, self.time_range)
+
 
         y = self.conv1(y)
         y = self.norm1(y)
