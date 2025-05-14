@@ -74,7 +74,7 @@ def loss_plot(training_losses, validation_losses=None, testing_losses=None, plot
     plt.grid(True)
     plt.tight_layout()
     plt.ylim(0,0.6)
-    # plt.savefig(plot_name, dpi=300, bbox_inches='tight')
+    plt.savefig(plot_name, dpi=300, bbox_inches='tight')
     # plt.show()
     
     
@@ -179,8 +179,8 @@ def plot_one_df_prediction(dataloader, model, file_name, imu_joint_map, col_name
     fig.suptitle(file_name)
 
     plt.tight_layout()
-    plt.show()
-    # plt.savefig(file_name, dpi=300, bbox_inches='tight')
+    # plt.show()
+    plt.savefig(file_name, dpi=300, bbox_inches='tight')
 
 
 
@@ -243,25 +243,47 @@ def cal_validation_loss(model, validation_dataloader, lossFn, lossFn_no_reductio
 
 
 # Plot a numpy array with every individual component on a subplot
-def plot_conv_deconv(latents_np, signals_np):
+def plot_conv_deconv(latents_np, signals_np, config, file_name):
     
     
-    fig, axes = plt.subplots(latents_np.shape[1], 1, figsize=(5, 10), sharex='col')
+    fig, axes = plt.subplots(latents_np.shape[1], 1, figsize=(8, 12), sharex='col')
     
-    print(latents_np.shape)
-    plot_numpy_array(axes, latents_np, label="Conv Signal")
-    plot_numpy_array(axes, signals_np, label="DeConv Signal")
-    
-    
-    plt.legend()
+    # print(latents_np.shape)
+    plot_conv_numpy_array(axes, latents_np, signals_np, config)
+
     plt.tight_layout()
-    plt.show()
+    plt.savefig(file_name, dpi=300, bbox_inches='tight')
+    # plt.show()
 
 
-def plot_numpy_array(axes, numpy_array, label):
+def plot_conv_numpy_array(axes, latents_numpy_array, signals_numpy_array, config):
     
-    for i in range(numpy_array.shape[1]):
-        axes[i].plot(numpy_array[0,i], label=label)
+    
+    # Generate a np array of indices
+    rng = np.random.default_rng()
+    random_start = rng.integers(low=0, high=(latents_numpy_array.shape[0] - config["seq_length"]))
+    plot_timesteps = 2000
+    
+    x = np.linspace(0,latents_numpy_array.shape[0],latents_numpy_array.shape[0])
+    
+
+    
+    # Iterate over the entire array
+    end = random_start+plot_timesteps - 301
+    plotting_freq = 20
+    for j in range(random_start,end, plotting_freq):
+    
+        for i in range(latents_numpy_array.shape[1]):    
+            
+     
+            axes[i].plot(x[j:j+config["seq_length"]], latents_numpy_array[j,i,:], linewidth=1, color="black")
+            axes[i].plot(x[j:j+config["seq_length"]], signals_numpy_array[j,i,:], linewidth=1, color="blue")
+            axes[i].set_ylim(-15,15)
+            
+            
+            if j==random_start:
+                axes[i].set_title(f"Channel_{i}")
+                # axes[i].legend()
 
 
 ## Plotting function - Heavily study the function

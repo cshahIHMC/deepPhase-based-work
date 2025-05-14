@@ -22,7 +22,7 @@ def parameter_setup(file_name, project_name):
     config = {
         "training_tag": file_name,
         "project_name": project_name,
-        "epochs": 2,
+        "epochs": 40,
         "batch_size": 32,
         "num_workers": 8,
         "momentum":0.9,
@@ -32,8 +32,8 @@ def parameter_setup(file_name, project_name):
         "seq_length": 301,
         "inputs": 24,
         "outputs": 24,
-        "phases": 4,
-        "intermediate_channels": 8,
+        "phases": 10,
+        "intermediate_channels": 16,
         "training_window": 2.0, # How many seconds of data you are reviewing
         "data_recorded_rate": 150 # 
     }
@@ -42,9 +42,9 @@ def parameter_setup(file_name, project_name):
     "back": "imu3",
     "pelvis": "imu2",
     "thigh_l": "imu1",
-    "thigh_r": "imu6", 
+    "thigh_r": "imu5", 
     "shank_l": "imu4",
-    "shank_r": "imu5",
+    "shank_r": "imu6",
     "foot_l": "L_insole",
     "foot_r": "R_insole"
     }
@@ -53,9 +53,9 @@ def parameter_setup(file_name, project_name):
         "imu3": "back",
         "imu2": "pelvis",
         "imu1": "thigh_l",
-        "imu6": "thigh_r", 
+        "imu5": "thigh_r", 
         "imu4": "shank_l",
-        "imu5": "shank_r",
+        "imu6": "shank_r",
         "L_insole": "foot_l",
         "R_insole": "foot_r"
     }
@@ -67,7 +67,6 @@ def parameter_setup(file_name, project_name):
 def setup_datasets(file_path, joint_imu_map, config):
     
     # file path to the data
-    csv_path = "/home/cshah/workspaces/deepPhase based work/Data/04_21_2025_walking_data.csv"
     csv_path = file_path
 
     # Read the csv file into a pandas data frame
@@ -75,8 +74,16 @@ def setup_datasets(file_path, joint_imu_map, config):
     
     
     # Split the pandas dataframe into a training and validation dataset
-    training_df = data.iloc[0:179580].reset_index(drop=True)
-    validation_df = data.iloc[179580:].reset_index(drop=True)
+    # data_split = 179580 # 04_21_2025
+    data_split_start = 80427 # 05_08_2025
+    data_split_end = 95427
+    
+    training_range_of_data = list(range(0,data_split_start)) + list(range(data_split_end,len(data)))
+    validation_range_of_data = list(range(data_split_start,data_split_end)) 
+                              
+    
+    training_df = data.iloc[training_range_of_data].reset_index(drop=True)
+    validation_df = data.iloc[validation_range_of_data].reset_index(drop=True)
     
     # Checking the Size of the data frame
     print("Training DF size:", training_df.shape)
@@ -174,74 +181,73 @@ def train_model(model, config, training_dataloader, validation_dataloader, log_w
             # Calculate running loss
             running_loss += loss.item() * PAE_inputs.size(0)
             
-            # #Start Visualization Section
-            # _a_ = utility.Item(params[2]).squeeze().numpy()
-            # for i in range(_a_.shape[0]):
-            #     dist_amps.append(_a_[i,:])
-            # while len(dist_amps) > 10000:
-            #     dist_amps.pop(0)
+        #     # #Start Visualization Section
+        #     # _a_ = utility.Item(params[2]).squeeze().numpy()
+        #     # for i in range(_a_.shape[0]):
+        #     #     dist_amps.append(_a_[i,:])
+        #     # while len(dist_amps) > 10000:
+        #     #     dist_amps.pop(0)
 
-            # _f_ = utility.Item(params[1]).squeeze().numpy()
-            # for i in range(_f_.shape[0]):
-            #     dist_freqs.append(_f_[i,:])
-            # while len(dist_freqs) > 10000:
-            #     dist_freqs.pop(0)
+        #     # _f_ = utility.Item(params[1]).squeeze().numpy()
+        #     # for i in range(_f_.shape[0]):
+        #     #     dist_freqs.append(_f_[i,:])
+        #     # while len(dist_freqs) > 10000:
+        #     #     dist_freqs.pop(0)
 
-            # loss_history.Add(
-            #     (utility.Item(loss).item(), "Reconstruction Loss")
-            # )
+        #     # loss_history.Add(
+        #     #     (utility.Item(loss).item(), "Reconstruction Loss")
+        #     # )
             
-            # if loss_history.Counter == 0:
-            #     model.eval()
+        #     # if loss_history.Counter == 0:
+        #     #     model.eval()
 
-            #     plot.Functions(ax1[0], utility.Item(flattened_inputs[0]).reshape(model.input_channels,config["seq_length"]), -1.0, 1.0, -5.0, 5.0, title="Motion Curves" + " " + str(model.input_channels) + "x" + str(config["seq_length"]), showAxes=False)
-            #     plot.Functions(ax1[1], utility.Item(latent[0]), -1.0, 1.0, -2.0, 2.0, title="Latent Convolutional Embedding" + " " + str(config["phases"]) + "x" + str(config["seq_length"]), showAxes=False)
-            #     plot.Circles(ax1[2], utility.Item(params[0][0]).squeeze(), utility.Item(params[2][0]).squeeze(), title="Learned Phase Timing"  + " " + str(config["phases"]) + "x" + str(2), showAxes=False)
-            #     plot.Functions(ax1[3], utility.Item(signal[0]), -1.0, 1.0, -2.0, 2.0, title="Latent Parametrized Signal" + " " + str(config["phases"]) + "x" + str(config["seq_length"]), showAxes=False)
-            #     plot.Functions(ax1[4], utility.Item(flattened_outputs[0]).reshape(model.input_channels,config["seq_length"]), -1.0, 1.0, -5.0, 5.0, title="Curve Reconstruction" + " " + str(model.input_channels) + "x" + str(config["seq_length"]), showAxes=False)
-            #     plot.Function(ax1[5], [utility.Item(flattened_inputs[0]), utility.Item(flattened_outputs[0])], -1.0, 1.0, -5.0, 5.0, colors=[(0, 0, 0), (0, 1, 1)], title="Curve Reconstruction (Flattened)" + " " + str(1) + "x" + str(model.input_channels*config["seq_length"]), showAxes=False)
-            #     plot.Distribution(ax3[0], dist_amps, title="Amplitude Distribution")
-            #     plot.Distribution(ax3[1], dist_freqs, title="Frequency Distribution")
+        #     #     plot.Functions(ax1[0], utility.Item(flattened_inputs[0]).reshape(model.input_channels,config["seq_length"]), -1.0, 1.0, -5.0, 5.0, title="Motion Curves" + " " + str(model.input_channels) + "x" + str(config["seq_length"]), showAxes=False)
+        #     #     plot.Functions(ax1[1], utility.Item(latent[0]), -1.0, 1.0, -2.0, 2.0, title="Latent Convolutional Embedding" + " " + str(config["phases"]) + "x" + str(config["seq_length"]), showAxes=False)
+        #     #     plot.Circles(ax1[2], utility.Item(params[0][0]).squeeze(), utility.Item(params[2][0]).squeeze(), title="Learned Phase Timing"  + " " + str(config["phases"]) + "x" + str(2), showAxes=False)
+        #     #     plot.Functions(ax1[3], utility.Item(signal[0]), -1.0, 1.0, -2.0, 2.0, title="Latent Parametrized Signal" + " " + str(config["phases"]) + "x" + str(config["seq_length"]), showAxes=False)
+        #     #     plot.Functions(ax1[4], utility.Item(flattened_outputs[0]).reshape(model.input_channels,config["seq_length"]), -1.0, 1.0, -5.0, 5.0, title="Curve Reconstruction" + " " + str(model.input_channels) + "x" + str(config["seq_length"]), showAxes=False)
+        #     #     plot.Function(ax1[5], [utility.Item(flattened_inputs[0]), utility.Item(flattened_outputs[0])], -1.0, 1.0, -5.0, 5.0, colors=[(0, 0, 0), (0, 1, 1)], title="Curve Reconstruction (Flattened)" + " " + str(1) + "x" + str(model.input_channels*config["seq_length"]), showAxes=False)
+        #     #     plot.Distribution(ax3[0], dist_amps, title="Amplitude Distribution")
+        #     #     plot.Distribution(ax3[1], dist_freqs, title="Frequency Distribution")
 
-            #     # indices = gather_window + random.choice(test_sequences)
-            #     # _, _, _, params = network(LoadBatches(indices))
+        #     #     # indices = gather_window + random.choice(test_sequences)
+        #     #     # _, _, _, params = network(LoadBatches(indices))
 
-            #     for i in range(config["phases"]):
-            #         phase = params[0][:,i]
-            #         freq = params[1][:,i]
-            #         amps = params[2][:,i]
-            #         offs = params[3][:,i]
-            #         plot.Phase1D(ax2[i,0], utility.Item(phase), utility.Item(amps), color=(0, 0, 0), title=("1D Phase Values" if i==0 else None), showAxes=False)
-            #         plot.Phase2D(ax2[i,1], utility.Item(phase), utility.Item(amps), title=("2D Phase Vectors" if i==0 else None), showAxes=False)
-            #         plot.Functions(ax2[i,2], utility.Item(freq).transpose(0,1), -1.0, 1.0, 0.0, 4.0, title=("Frequencies" if i==0 else None), showAxes=False)
-            #         plot.Functions(ax2[i,3], utility.Item(amps).transpose(0,1), -1.0, 1.0, 0.0, 1.0, title=("Amplitudes" if i==0 else None), showAxes=False)
-            #         plot.Functions(ax2[i,4], utility.Item(offs).transpose(0,1), -1.0, 1.0, -1.0, 1.0, title=("Offsets" if i==0 else None), showAxes=False)
+        #     #     for i in range(config["phases"]):
+        #     #         phase = params[0][:,i]
+        #     #         freq = params[1][:,i]
+        #     #         amps = params[2][:,i]
+        #     #         offs = params[3][:,i]
+        #     #         plot.Phase1D(ax2[i,0], utility.Item(phase), utility.Item(amps), color=(0, 0, 0), title=("1D Phase Values" if i==0 else None), showAxes=False)
+        #     #         plot.Phase2D(ax2[i,1], utility.Item(phase), utility.Item(amps), title=("2D Phase Vectors" if i==0 else None), showAxes=False)
+        #     #         plot.Functions(ax2[i,2], utility.Item(freq).transpose(0,1), -1.0, 1.0, 0.0, 4.0, title=("Frequencies" if i==0 else None), showAxes=False)
+        #     #         plot.Functions(ax2[i,3], utility.Item(amps).transpose(0,1), -1.0, 1.0, 0.0, 1.0, title=("Amplitudes" if i==0 else None), showAxes=False)
+        #     #         plot.Functions(ax2[i,4], utility.Item(offs).transpose(0,1), -1.0, 1.0, -1.0, 1.0, title=("Offsets" if i==0 else None), showAxes=False)
                 
-            #     #Visualization
-            #     # pca_indices = []
-            #     # pca_batches = []
-            #     # pivot = 0
-            #     # pca_sequence_count = 100
-            #     # for i in range(pca_sequence_count):
-            #     #     # indices = gather_window + random.choice(test_sequences)
-            #     #     # _, _, _, params = network(LoadBatches(indices))
-            #     #     a = utility.Item(params[2]).squeeze()
-            #     #     p = utility.Item(params[0]).squeeze()
-            #     #     b = utility.Item(params[3]).squeeze()
-            #     #     m_x = a * np.sin(2.0 * np.pi * p) + b
-            #     #     m_y = a * np.cos(2.0 * np.pi * p) + b
-            #     #     manifold = torch.hstack((m_x, m_y))
-            #     #     pca_indices.append(pivot + np.arange(len(indices)))
-            #     #     pca_batches.append(manifold)
-            #     #     pivot += len(indices)
+        #     #     #Visualization
+        #     #     # pca_indices = []
+        #     #     # pca_batches = []
+        #     #     # pivot = 0
+        #     #     # pca_sequence_count = 100
+        #     #     # for i in range(pca_sequence_count):
+        #     #     #     # indices = gather_window + random.choice(test_sequences)
+        #     #     #     # _, _, _, params = network(LoadBatches(indices))
+        #     #     #     a = utility.Item(params[2]).squeeze()
+        #     #     #     p = utility.Item(params[0]).squeeze()
+        #     #     #     b = utility.Item(params[3]).squeeze()
+        #     #     #     m_x = a * np.sin(2.0 * np.pi * p) + b
+        #     #     #     m_y = a * np.cos(2.0 * np.pi * p) + b
+        #     #     #     manifold = torch.hstack((m_x, m_y))
+        #     #     #     pca_indices.append(pivot + np.arange(len(indices)))
+        #     #     #     pca_batches.append(manifold)
+        #     #     #     pivot += len(indices)
 
-            #     # plot.PCA2D(ax4[0], pca_indices, pca_batches, "Phase Manifold (" + str(pca_sequence_count) + " Random Sequences)")
+        #     #     # plot.PCA2D(ax4[0], pca_indices, pca_batches, "Phase Manifold (" + str(pca_sequence_count) + " Random Sequences)")
 
             #     plt.gcf().canvas.draw_idle()
             # plt.gcf().canvas.start_event_loop(1e-5)
             # #End Visualization Section
             
-            break
         
         train_loss = running_loss / len(training_dataloader.dataset)
         training_losses.append(train_loss)
@@ -253,7 +259,9 @@ def train_model(model, config, training_dataloader, validation_dataloader, log_w
         individual_losses.append(individual_loss)
         print(f'Epoch [{epoch+1}/{epochs}], Validation Loss: {val_loss}')
         
-        utility.plot_conv_deconv(latents_np, signal_np)
+        if (epoch+1)==epochs:
+            file_name = "Plots/" + config["training_tag"] + "_Latent_signal.png"
+            utility.plot_conv_deconv(latents_np, signal_np, config, file_name)
     
         # test_loss, individual_test_loss = cal_validation_loss(model, testing_dataloader, lossFn, lossFn_no_reduction)
         # testing_losses.append(test_loss)
@@ -288,12 +296,11 @@ def plot_model_predictions(training_dataloader, validation_dataloader, model_fil
     utility.plot_predictions(training_dataloader, validation_dataloader, loaded_model, imu_joint_map, folder_name, col_names)
 
 def main():
-   
     # Logging Flag
-    log_wandB = False
+    log_wandB = True
     # file_name = "trial"
-    file_name = "PAE - sensor suit Walking Data - seq-length-300, 8 Phases 24x16xembedded channels conv and mean centered"
-    project_name = "PAE - Sensor suit Walking Data"
+    file_name = "PAE - sensor suit Walking Data (132000) - seq-length-300, 10 Phases 24x16xembedded channels conv and mean centered"
+    project_name = "PAE - Sensor suit Walking Data - With Future predictions + New Thigh IMU location"
     
     # Prediction_Plotting_Slice
     training_prediction_start = 2531
@@ -310,7 +317,7 @@ def main():
         wandb.init( project=project_name, name= config["training_tag"], config=config)
     
     # Data setup
-    data_path = "/home/cshah/workspaces/deepPhase based work/Data/04_21_2025_walking_data.csv"
+    data_path = "/home/cshah/workspaces/deepPhase based work/Data/05_08_2025_walking_data.csv"
     
     training_dataset, validation_dataset, col_names = setup_datasets( file_path=data_path, joint_imu_map=joint_imu_map, config=config)
     
@@ -326,6 +333,10 @@ def main():
     validation_dataloader_plotting = DataLoader(validation_dataset_plotting, batch_size=1, shuffle=False, num_workers=config["num_workers"])
     
     # Model Setup
+    
+    # model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250429_1104_PAE - sensor suit Walking Data (300000) - seq-length-300, 10 Phases 24x16xembedded channels conv and mean centered.pth"
+    # weights = torch.load(model_file, weights_only=True)
+    
     model = utility.ToDevice(PAE.Model(
                           input_channels=config["inputs"],
                           embedding_channels=config["phases"],
@@ -334,7 +345,9 @@ def main():
                           window=config["training_window"]
                          ))
     
-    # Train Model
+    # model.load_state_dict(weights)
+    
+    # # Train Model
     training_losses, validation_losses = train_model(model=model, config=config, training_dataloader=training_dataloader, 
                                                    validation_dataloader=validation_dataloader, log_wandB=log_wandB)
 
@@ -353,7 +366,7 @@ def main():
     model_file = model_save_location
     # model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250424_1118_PAE - sensor suit Walking Data - seq-length-300, 8 Phases and mean centered.pth"
     
-    # plot_model_predictions(training_dataloader_plotting, validation_dataloader_plotting, model_file, imu_joint_map, config, col_names, plot_save_location)
+    plot_model_predictions(training_dataloader_plotting, validation_dataloader_plotting, model_file, imu_joint_map, config, col_names, plot_save_location)
     
     
     # End wandB logging
