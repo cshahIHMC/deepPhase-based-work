@@ -10,6 +10,7 @@ import numpy as np
 from itertools import islice
 import sys
 
+
 # Check if the GPU is available and put the object on the GPU
 def ToDevice(x):
     return x.cuda() if torch.cuda.is_available() else x
@@ -29,8 +30,19 @@ def extract_data(all_data, data_keys):
         columns_to_extract.append(cols+"_gyro_y")
         columns_to_extract.append(cols+"_gyro_z")
         
+    
+    
+    # Extract all the angles
+    for key in data_keys.keys():
         
-    subset_df = all_data[columns_to_extract].copy()
+        if "pelvis" in key or "back" in key:
+
+            continue
+
+        columns_to_extract.append(key+"_angle_y")
+        
+    # Extract all the Gyro's
+    subset_df = all_data[columns_to_extract].copy()    
         
     return subset_df
 
@@ -240,6 +252,56 @@ def cal_validation_loss(model, validation_dataloader, lossFn, lossFn_no_reductio
         
         
     return val_loss, individual_losses, latents_np, signals_np
+
+# Function to calculate the PAE validation loss
+def cal_validation_loss_future_prediction(model, PAE_model, validation_dataloader, lossFn, lossFn_no_reduction):
+    model.eval()
+    PAE_model.eval()
+    
+    val_loss = 0.0
+    individual_losses = np.zeros(6, dtype=np.float32)
+    
+    with torch.no_grad():
+        for batch in validation_dataloader:
+            
+            PAE_inputs, FCNN_inputs, FCNN_outputs = batch
+            PAE_inputs = ToDevice(PAE_inputs)
+                        
+            # Predict
+            _, _, _, params  = PAE_model(PAE_inputs)
+            
+            flattened_inputs = ToDevice(FCNN_inputs.reshape(FCNN_inputs.shape[0], -1))
+
+
+            phaseInputs = torch.flatten(torch.stack(params, dim=1),1,2) 
+            phaseInputs = phaseInputs[:,:,-1]
+            
+            FCNN_combine_inputs = torch.cat((flattened_inputs, phaseInputs), dim=1)
+            
+            # Forwards pass
+            y_pred = model(FCNN_combine_inputs)
+            
+            # Calculate the loss
+            # weightedLoss = weightedMSELossFunction(ypred, groundTruth, conditions)
+            loss = lossFn(y_pred,ToDevice(FCNN_outputs))
+
+            
+            # Calculate running loss
+            val_loss += loss.item() * PAE_inputs.size(0)
+            
+            # Calculate Individual Loss, first across sequence length and then across batches
+            individual_loss = lossFn_no_reduction(ToDevice(FCNN_outputs), y_pred)
+            individual_loss_across_batch = individual_loss.mean(0)
+
+            individual_losses = individual_losses + ( Item(individual_loss_across_batch).numpy() * FCNN_inputs.size(0))
+            
+
+        val_loss = val_loss / len(validation_dataloader.dataset)
+        individual_losses = individual_losses / len(validation_dataloader.dataset)   
+   
+        
+        
+    return val_loss, individual_losses
 
 
 # Plot a numpy array with every individual component on a subplot
