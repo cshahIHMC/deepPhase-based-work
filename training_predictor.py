@@ -24,7 +24,7 @@ def parameter_setup(file_name, project_name):
     config = {
         "training_tag": file_name,
         "project_name": project_name,
-        "epochs": 1,
+        "epochs": 20,
         "batch_size": 32,
         "num_workers": 8,
         "momentum":0.9,
@@ -227,7 +227,7 @@ def train_model(model, config, training_dataloader, validation_dataloader, PAE_m
                         "val/epoch":epoch})
         
             
-        return training_losses, validation_losses    
+    return training_losses, validation_losses           
 
         
     
