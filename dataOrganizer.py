@@ -11,15 +11,20 @@ import pandas as pd
 # Path where it is saved "/home/cshah/workspaces/deepPhase based work/Data/validation_sensor_suit_file"
 # csv_write = "/home/cshah/workspaces/deepPhase based work/Data/training_validation_sensor_suit_file.csv"
 
-csv_write = "/home/cshah/workspaces/deepPhase based work/Data/04_21_2025_walking_data.csv"
+csv_write = "/home/cshah/workspaces/deepPhase based work/Data/05_08_2025_walking_data.csv"
 
 
 # CSV's to read from
 csv_files =  [
-"/home/cshah/workspaces/sensorsuit/logs/04_21_2025/04_21_2025_10_min_walk_test.csv",
+# "/home/cshah/workspaces/sensorsuit/logs/04_21_2025/04_21_2025_10_min_walk_test.csv",
 # "/home/cshah/workspaces/sensorsuit/logs/04_09_2025/04_09_2025_trial_4.csv"
 # "/home/cshah/workspaces/sensorsuit/logs/04_09_2025/04_09_2025_trial_1.csv"
 # Add more files as needed
+
+# "/home/cshah/workspaces/sensorsuit/logs/04_28_2025/04_28_2025_walk_test_1.csv",
+# "/home/cshah/workspaces/sensorsuit/logs/04_28_2025/04_28_2025_walk_test_2.csv,"
+
+"/home/cshah/workspaces/sensorsuit/logs/05_08_2025/05_08_2025_start_0_walk_test.csv"
 ]
 
 # Read and concatenate all CSVs
@@ -28,6 +33,8 @@ combined_df = pd.concat([pd.read_csv(f) for f in csv_files], ignore_index=True)
 
 # Optional: sort or reset index
 combined_df.reset_index(drop=True, inplace=True)
+
+print(len(combined_df))
 
 
 # Write to a single long CSV
