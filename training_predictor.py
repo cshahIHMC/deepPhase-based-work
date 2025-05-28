@@ -38,7 +38,7 @@ def parameter_setup(file_name, project_name):
         "PAE_intermediate_channels": 16,
         "training_window": 2.0, # How many seconds of data you are reviewing
         "data_recorded_rate": 150, # 
-        "FCNN_inputs": 6,
+        "FCNN_inputs": 48,
         "FCNN_outputs": 6,
         "FCNN_seq_length":12,
         "FCNN_num_hidden_layers": 4,
@@ -114,9 +114,9 @@ def setup_datasets(file_path, joint_imu_map, config):
     # To make everything consistent we convert the xsensor data to rad/sec
     # Convert all the angle columns to radians
     col_to_modify = ["R_insole_gyro_x", "R_insole_gyro_y" , "R_insole_gyro_z",
-                     "L_insole_gyro_x", "L_insole_gyro_y" , "L_insole_gyro_z",
-                     "thigh_r_angle_y", "thigh_l_angle_y", "shank_r_angle_y",
-                     "shank_l_angle_y", "foot_r_angle_y", "foot_l_angle_y"]
+                     "L_insole_gyro_x", "L_insole_gyro_y" , "L_insole_gyro_z"]
+                    #  "thigh_r_angle_y", "thigh_l_angle_y", "shank_r_angle_y",
+                    #  "shank_l_angle_y", "foot_r_angle_y", "foot_l_angle_y"]
 
     for col in col_to_modify:
         extracted_training_df[col] = extracted_training_df[col] * np.pi / 180
@@ -178,8 +178,8 @@ def train_model(model, config, training_dataloader, validation_dataloader, PAE_m
         
             PAE_inputs, FCNN_inputs, FCNN_outputs = batch
             # print("PAE inputs size: ", PAE_inputs.shape)
-            # print("FNN inputs size: ", FCNN_inputs.shape)
-            # print("FNN outputs size: ", FCNN_outputs.shape)
+            # print("FNN inputs last slice ", FCNN_inputs[-1,:,-1])
+            # print("FNN outputs:", FCNN_outputs[-1,:])
             
             PAE_inputs = utility.ToDevice(PAE_inputs)
             
@@ -189,11 +189,11 @@ def train_model(model, config, training_dataloader, validation_dataloader, PAE_m
             # Flattening the inputs for the motion prediction network
             flattened_inputs = utility.ToDevice(FCNN_inputs.reshape(FCNN_inputs.shape[0], -1))
 
-
             phaseInputs = torch.flatten(torch.stack(params, dim=1),1,2) 
             phaseInputs = phaseInputs[:,:,-1]
             
             FCNN_combine_inputs = torch.cat((flattened_inputs, phaseInputs), dim=1)
+            # FCNN_combine_inputs = flattened_inputs
             
             # Forwards pass
             y_pred = model(FCNN_combine_inputs)
@@ -234,7 +234,7 @@ def train_model(model, config, training_dataloader, validation_dataloader, PAE_m
 def main():
     
     # Logging Flag
-    log_wandB = False
+    log_wandB = True
     
      # Prediction_Plotting_Slice
     training_prediction_start = 2531
@@ -244,8 +244,8 @@ def main():
     PAE_model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250514_1208_PAE - sensor suit Walking Data (132000) - seq-length-300, 10 Phases 24x16xembedded channels conv and mean centered.pth"
     
     # file_name = "trial"
-    file_name = "FFNN - Future joint angle predictor"
-    project_name = "PAE - Sensor suit Walking Data - With Future predictions + New Thigh IMU location"
+    file_name = "FFNN - Phases + acc+ gyro"
+    project_name = "Future Predictor - Different Conditions"
     
     # Setup all the system paramters
     config, joint_imu_map, imu_joint_map = parameter_setup( file_name=file_name, project_name=project_name)
@@ -274,6 +274,7 @@ def main():
     
     ## Load Model
     FCNN_inputs = config["FCNN_inputs"] * config["FCNN_seq_length"] + 4 * config["PAE_phases"]
+    # FCNN_inputs = config["FCNN_inputs"] * config["FCNN_seq_length"]
     model = utility.ToDevice(FCNN(FCNN_inputs, 
                             config["FCNN_outputs"], 
                             config["FCNN_num_hidden_layers"],

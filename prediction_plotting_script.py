@@ -114,9 +114,9 @@ def setup_datasets(file_path, joint_imu_map, config):
     # To make everything consistent we convert the xsensor data to rad/sec
     # Convert all the angle columns to radians
     col_to_modify = ["R_insole_gyro_x", "R_insole_gyro_y" , "R_insole_gyro_z",
-                     "L_insole_gyro_x", "L_insole_gyro_y" , "L_insole_gyro_z",
-                     "thigh_r_angle_y", "thigh_l_angle_y", "shank_r_angle_y",
-                     "shank_l_angle_y", "foot_r_angle_y", "foot_l_angle_y"]
+                     "L_insole_gyro_x", "L_insole_gyro_y" , "L_insole_gyro_z"]
+                    #  "thigh_r_angle_y", "thigh_l_angle_y", "shank_r_angle_y"
+                    #  "shank_l_angle_y", "foot_r_angle_y", "foot_l_angle_y"]
 
     for col in col_to_modify:
         extracted_training_df[col] = extracted_training_df[col] * np.pi / 180
@@ -139,7 +139,7 @@ def plot_FCNN_predictions(PAE_model, FCNN_model, training_dataloader, validation
     plot_FCNN_one_dataframe(PAE_model, FCNN_model, training_dataloader)
     
     # plot the validation_df
-    # plot_FCNN_one_dataframe(PAE_model, FCNN_model, validation_dataloader)
+    plot_FCNN_one_dataframe(PAE_model, FCNN_model, validation_dataloader)
     
 def plot_FCNN_one_dataframe(PAE_model, FCNN_model, dataloader):
     
@@ -172,8 +172,8 @@ def plot_FCNN_one_dataframe(PAE_model, FCNN_model, dataloader):
         
         # Forwards pass
         y_pred = FCNN_model(FCNN_combine_inputs)
-        print(FCNN_outputs)
-        print(y_pred)
+        # print(FCNN_outputs)
+        # print(y_pred)
         
         prediction = utility.Item(y_pred).numpy()
         ground_truth = FCNN_outputs.numpy()
@@ -181,8 +181,8 @@ def plot_FCNN_one_dataframe(PAE_model, FCNN_model, dataloader):
         plot_ground_truth_df = pd.concat((plot_ground_truth_df, pd.DataFrame(ground_truth)), axis=0)
         plot_prediction_df = pd.concat((plot_prediction_df, pd.DataFrame(prediction)), axis=0)
         
-        break
-    fig, axs = plt.subplots(3, 2, figsize=(10,15), sharey=True)
+
+    fig, axs = plt.subplots(3, 2, figsize=(10,15), sharey=True, sharex=True)
     axs = axs.flatten()
     
     for idx, column in enumerate(plot_ground_truth_df.columns):
@@ -205,7 +205,7 @@ def main():
     
     
     PAE_model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250514_1208_PAE - sensor suit Walking Data (132000) - seq-length-300, 10 Phases 24x16xembedded channels conv and mean centered.pth"
-    FCNN_model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250516_0901_FFNN - Future joint angle predictor.pth"
+    FCNN_model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250519_1638_FFNN - Phase + 1 time steps.pth"
     # file_name = "trial"
     file_name = "FFNN - Future joint angle predictor"
     project_name = "PAE - Sensor suit Walking Data - With Future predictions + New Thigh IMU location"
