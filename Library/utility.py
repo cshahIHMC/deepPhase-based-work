@@ -85,7 +85,6 @@ def loss_plot(training_losses, validation_losses=None, testing_losses=None, plot
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.ylim(0,0.6)
     plt.savefig(plot_name, dpi=300, bbox_inches='tight')
     # plt.show()
     
@@ -302,6 +301,34 @@ def cal_validation_loss_future_prediction(model, PAE_model, validation_dataloade
         
         
     return val_loss, individual_losses
+
+# Function to calculate the PAE validation loss
+def cal_val_loss(model, validation_dataloader, lossFn):
+    model.eval()
+
+    val_loss = 0.0
+    
+    with torch.no_grad():
+        for batch in validation_dataloader:
+            
+            inputs, outputs = batch
+            
+            # Forwards pass
+            y_pred = model(ToDevice(inputs))
+
+            # y_pred = y_pred.view(-1, 7, 4)
+            # outputs = outputs.view(-1, 7, 4)
+            
+            # Calculate the loss
+            loss = lossFn(y_pred,ToDevice(outputs))
+
+            
+            # Calculate running loss
+            val_loss += loss.item() * inputs.size(0)
+            
+        val_loss = val_loss / len(validation_dataloader.dataset) 
+        
+    return val_loss
 
 
 # Plot a numpy array with every individual component on a subplot
