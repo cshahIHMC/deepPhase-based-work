@@ -31,14 +31,14 @@ class AutoEncoder(nn.Module):
         # Encoding
         for i, layer in enumerate(self.encoder_layers):
             x = torch.relu(layer(x))
-            x = self.dropout(x)
+            # x = self.dropout(x)
         z = torch.tanh(self.encoder_out(x))  # Latent representation
         
         # Decoding
         x = z
         for layer in self.decoder_layers:
             x = torch.relu(layer(x))
-            x = self.dropout(x)
+            # x = self.dropout(x)
         x_recon = torch.tanh(self.decoder_out(x))  # Output
 
         # return x_recon, z  # Return both reconstruction and latent

@@ -50,21 +50,22 @@ class dataLoader_simple_loader(Dataset):
         # Input data
    
         self.input_quat_data = self.original_df.iloc[:, 0:28]
-        self.input_acc_gyro_data = self.original_df.iloc[:, 56:98]
+        # self.input_acc_gyro_data = self.original_df.iloc[:, 56:98]
         
-        # Col wise mean
-        acc_gyro_mean = self.input_acc_gyro_data.mean()
-        acc_gyro_std = self.input_acc_gyro_data.std()
-        acc_gyro_std[acc_gyro_std == 0] = 1e-8
+        # # Col wise mean
+        # acc_gyro_mean = self.input_acc_gyro_data.mean()
+        # acc_gyro_std = self.input_acc_gyro_data.std()
+        # acc_gyro_std[acc_gyro_std == 0] = 1e-8
         
-        self.input_acc_gyro_data_norm =  (self.input_acc_gyro_data - acc_gyro_mean) / acc_gyro_std
-        self.input_acc_gyro_data_norm = self.input_acc_gyro_data_norm.fillna(0)
+        # self.input_acc_gyro_data_norm =  (self.input_acc_gyro_data - acc_gyro_mean) / acc_gyro_std
+        # self.input_acc_gyro_data_norm = self.input_acc_gyro_data_norm.fillna(0)
         
-        self.input_data = pd.concat([
-                            self.input_quat_data,
-                            self.input_acc_gyro_data_norm
-                            ], axis=1)
+        # self.input_data = pd.concat([
+        #                     self.input_quat_data,
+        #                     self.input_acc_gyro_data_norm
+        #                     ], axis=1)
         
+        self.input_data = self.input_quat_data
         
         # Output data
         self.output_data = self.original_df.iloc[:, 28:56]

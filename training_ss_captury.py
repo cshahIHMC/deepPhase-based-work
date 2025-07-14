@@ -104,7 +104,7 @@ def parameter_setup(file_name, project_name):
         "outputs": 28,
         "model_inputs": 42,
         "model_outputs": 42,
-        "seq_length": 50,
+        "seq_length": 150,
         "num_hidden_layers": 4,
         "num_hidden_neurons": 256
     }
@@ -141,7 +141,7 @@ def train_model(model, config, training_dataloader, validation_dataloader, log_w
     
         for batch in training_dataloader:
         
-            inputs, outputs = batch      
+            inputs, outputs = batch     
             
             # Forward pass
             y_pred = model(utility.ToDevice(inputs))
@@ -178,17 +178,18 @@ def train_model(model, config, training_dataloader, validation_dataloader, log_w
     return training_losses, validation_losses           
 
 
-def plot_results(training_dataloader, validation_dataloader, model):
+def plot_results(treadmill_walking_val, walking_val, squats_val, random_val, training_dataloader, validation_dataloader, model):
     
     # Plot the training dataloader
-    train_file_name = "Plots/training_quaternion_prediction_walk_around.png"
-    plot_dl(training_dataloader, model, train_file_name)
+    plot_dl(treadmill_walking_val, model)
+    plot_dl(walking_val, model)
+    plot_dl(squats_val, model)
+    plot_dl(random_val, model)
+    plot_dl(training_dataloader, model)
+    plot_dl(validation_dataloader, model)
     
-    # Plot the validation dataloader
-    val_file_name = "Plots/validation_quaternion_prediction_walk_around.png"
-    plot_dl(validation_dataloader, model, val_file_name)
     
-def plot_dl(dataloader, model, plot_save_name):
+def plot_dl(dataloader, model, plot_save_name=None):
     model.eval()
     
     ground_truth = []
@@ -200,22 +201,24 @@ def plot_dl(dataloader, model, plot_save_name):
             inputs, outputs = batch
             
             pred = model(utility.ToDevice(inputs))
-            
-            output_np = outputs.squeeze().numpy()
-            pred_np = utility.Item(pred).squeeze().numpy()
-            
+
+            output_np = outputs.numpy()
+            pred_np = utility.Item(pred).numpy()
+
             preds.append(pred_np)
             ground_truth.append(output_np)
-    
-    preds_arr = np.array(preds)
-    ground_truth_arr = np.array(ground_truth)
+                  
+
+    # Concatenate all batch outputs
+    preds_arr = np.concatenate(preds, axis=0)         # shape: (N, 1, 28)
+    ground_truth_arr = np.concatenate(ground_truth, axis=0)  # shape: (N, 1, 28)
     
     # preds, targets: (B, 1, 28) → reshape to (B, 7, 4)
     preds = preds_arr.reshape(preds_arr.shape[0], 7, 4)
     ground_truth = ground_truth_arr.reshape(ground_truth_arr.shape[0], 7, 4)
     
-    pred_euler_angles = joint_angle_calculator( normalize_np_quat(preds_arr) )
-    ground_truth_euler_angles = joint_angle_calculator( normalize_np_quat(ground_truth_arr) )
+    pred_euler_angles = joint_angle_calculator( normalize_np_quat(preds_arr.squeeze()) )
+    ground_truth_euler_angles = joint_angle_calculator( normalize_np_quat(ground_truth_arr.squeeze()) )
     
     # Convert the euler angles sin cos presentations to euler angles
     # preds_sin_cos = sincos_to_euler_all(preds)
@@ -313,7 +316,7 @@ def main():
     log_wandB = False
        
     # file_name = "trial"
-    file_name = "FFNN -  Quaternion Predictor with sin cos euler angle representations"
+    file_name = "Sensor-Suit-Captury-Data"
     project_name = "Quaternion Predictor"
     
     # Setup all the system paramters
@@ -327,22 +330,58 @@ def main():
         
     ## Data Setup
     # data_path = "/home/cshah/workspaces/deepPhase based work/Data/Quaternion_training_data_pelvis_frame_rel_quats.csv"
-    data_path = "/home/cshah/workspaces/deepPhase based work/Data/Quaternion_training_data_pelvis_frame_rel_quats_with_acc_gyro.csv"
+    # data_path = "/home/cshah/workspaces/deepPhase based work/Data/07_02_combined_data.csv"
+    # val_path = "/home/cshah/workspaces/deepPhase based work/Data/07_02_combined_data_validate.csv"
+    
+    # walking_data = "/home/cshah/workspaces/deepPhase based work/Data/07_02_walking_quaternion_data.csv"
+    # squats_data = "/home/cshah/workspaces/deepPhase based work/Data/07_02_squats_validate.csv"
+    # random_data = "/home/cshah/workspaces/deepPhase based work/Data/07_02_random_validate.csv"
+    
+    data_path = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_combined_data.csv"
+    val_path = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_combined_data_validate.csv"
+    
+    treadmill_walking_data = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_TW_validate.csv"
+    walking_data = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_WA_validate.csv"
+    squats_data = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_squats_validate.csv"
+    random_data = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_random_validate.csv"
+  
     
     df = pd.read_csv(data_path)
+    val_df = pd.read_csv(val_path)
+    
+    treadmill_walking_df = pd.read_csv(treadmill_walking_data)     
+    walking_data_df = pd.read_csv(walking_data)
+    squats_data_df = pd.read_csv(squats_data)
+    random_data_df = pd.read_csv(random_data)
+    
   
     for col in df.columns:
         df[col] = df[col].astype(float)
         
     
-    training_dataset = dataLoader_simple_loader(df.iloc[0:43000, :], config["seq_length"], config["inputs"], config["outputs"])
-    validation_dataset = dataLoader_simple_loader(df.iloc[43000:50000, :], config["seq_length"], config["inputs"], config["outputs"])
+    training_dataset = dataLoader_simple_loader(df, config["seq_length"], config["inputs"], config["outputs"])
+    validation_dataset = dataLoader_simple_loader(val_df, config["seq_length"], config["inputs"], config["outputs"])
     
-    training_dataloader = DataLoader(training_dataset, batch_size=1, shuffle=True, num_workers=config["num_workers"])
-    validation_dataloader = DataLoader(validation_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
+    training_dataloader = DataLoader(training_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=config["num_workers"])
+    validation_dataloader = DataLoader(validation_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=config["num_workers"])
+    
+    treadmill_walking_dataset = dataLoader_simple_loader(treadmill_walking_df, config["seq_length"], config["inputs"], config["outputs"])
+    walking_dataset = dataLoader_simple_loader(walking_data_df, config["seq_length"], config["inputs"], config["outputs"])
+    squats_dataset = dataLoader_simple_loader(squats_data_df, config["seq_length"], config["inputs"], config["outputs"])
+    random_dataset = dataLoader_simple_loader(random_data_df, config["seq_length"], config["inputs"], config["outputs"])
+
+    treadmill_dataloader = DataLoader(treadmill_walking_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
+    walking_dataloader = DataLoader(walking_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
+    squats_dataloader = DataLoader(squats_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
+    random_dataloader = DataLoader(random_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
+    
+    
+    
+    
+    
         
-    training_dataloader_plotting = DataLoader(training_dataset, batch_size=1, shuffle=False, num_workers=config["num_workers"])
-    validation_dataloader_plotting = DataLoader(validation_dataset, batch_size=1, shuffle=False, num_workers=config["num_workers"])
+    # training_dataloader_plotting = DataLoader(training_dataset, batch_size=32, shuffle=False, num_workers=1)
+    # validation_dataloader_plotting = DataLoader(validation_dataset, batch_size=32, shuffle=False, num_workers=1)
     
     
     # Load Model
@@ -352,7 +391,7 @@ def main():
     #                         config["num_hidden_neurons"],
     #                         0.3))
     
-    model = utility.ToDevice(AutoEncoder(input_dim=3500, output_dim=28, latent_dim=140, num_layers=5, hidden_dim=512, dropout_rate=0.3))
+    model = utility.ToDevice(AutoEncoder(input_dim=4200, output_dim=28, latent_dim=8, num_layers=3, hidden_dim=256, dropout_rate=0.3))
     
     # model = utility.ToDevice(QuaternionNet(input=7, hidden_dim=64, output=7))
     # model = utility.ToDevice(QVNN_AutoEncoder(in_quats=7, out_quats=7, latent_dim=32))
@@ -362,7 +401,7 @@ def main():
     training_losses, validation_losses = train_model(model=model, config=config, training_dataloader=training_dataloader, 
                                                    validation_dataloader=validation_dataloader, log_wandB=log_wandB)
     
-    plot_results(training_dataloader_plotting, validation_dataloader_plotting, model)
+    plot_results(treadmill_dataloader, walking_dataloader, squats_dataloader, random_dataloader, training_dataloader, validation_dataloader, model)
     
     # # Save the Model
     # model_save_location = "Saved Models/" + datetime.now().strftime('%Y%m%d_%H%M') + "_" + config["training_tag"] + ".pth"
