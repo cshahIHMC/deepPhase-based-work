@@ -93,7 +93,7 @@ def parameter_setup(file_name, project_name):
     config = {
         "training_tag": file_name,
         "project_name": project_name,
-        "epochs": 30,
+        "epochs": 20,
         "batch_size": 32,
         "num_workers": 8,
         "momentum":0.9,
@@ -178,15 +178,15 @@ def train_model(model, config, training_dataloader, validation_dataloader, log_w
     return training_losses, validation_losses           
 
 
-def plot_results(treadmill_walking_val, walking_val, squats_val, random_val, training_dataloader, validation_dataloader, model):
-    
+# def plot_results(treadmill_walking_val, walking_val, squats_val, random_val, training_dataloader, validation_dataloader, model):
+def plot_results(training_dataloader, validation_dataloader,  model):    
     # Plot the training dataloader
-    plot_dl(treadmill_walking_val, model)
-    plot_dl(walking_val, model)
-    plot_dl(squats_val, model)
-    plot_dl(random_val, model)
-    plot_dl(training_dataloader, model)
-    plot_dl(validation_dataloader, model)
+    # plot_dl(treadmill_walking_val, model)
+    # plot_dl(walking_val, model)
+    # plot_dl(squats_val, model)
+    # plot_dl(random_val, model)
+    plot_dl(training_dataloader, model, "/home/cshah/workspaces/deepPhase based work/Data/Full Training - Gyro + Joint Angles/Quat_sub2_model_output_train.csv")
+    plot_dl(validation_dataloader, model, "/home/cshah/workspaces/deepPhase based work/Data/Full Training - Gyro + Joint Angles/Quat_sub2_model_output_val.csv")
     
     
 def plot_dl(dataloader, model, plot_save_name=None):
@@ -212,6 +212,17 @@ def plot_dl(dataloader, model, plot_save_name=None):
     # Concatenate all batch outputs
     preds_arr = np.concatenate(preds, axis=0)         # shape: (N, 1, 28)
     ground_truth_arr = np.concatenate(ground_truth, axis=0)  # shape: (N, 1, 28)
+    
+    preds_arr_sq = np.squeeze( preds_arr, axis=1)
+    pred_df = pd.DataFrame(preds_arr_sq)
+    
+    ground_truth_arr_sq = np.squeeze( ground_truth_arr, axis=1)
+    ground_truth_df = pd.DataFrame(ground_truth_arr_sq)
+    
+    combined_df = pd.concat([ground_truth_df, pred_df], ignore_index=True, axis=1)
+    print(combined_df.shape)
+    combined_df.reset_index(drop=True, inplace=True)
+    combined_df.to_csv(plot_save_name, index=False)
     
     # preds, targets: (B, 1, 28) → reshape to (B, 7, 4)
     preds = preds_arr.reshape(preds_arr.shape[0], 7, 4)
@@ -317,7 +328,7 @@ def main():
        
     # file_name = "trial"
     file_name = "Sensor-Suit-Captury-Data"
-    project_name = "Quaternion Predictor"
+    project_name = "Future Predictor"
     
     # Setup all the system paramters
     config = parameter_setup( file_name=file_name, project_name=project_name)
@@ -337,49 +348,51 @@ def main():
     # squats_data = "/home/cshah/workspaces/deepPhase based work/Data/07_02_squats_validate.csv"
     # random_data = "/home/cshah/workspaces/deepPhase based work/Data/07_02_random_validate.csv"
     
-    data_path = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_combined_data.csv"
-    val_path = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_combined_data_validate.csv"
+    # data_path = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_combined_data.csv"
     
-    treadmill_walking_data = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_TW_validate.csv"
-    walking_data = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_WA_validate.csv"
-    squats_data = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_squats_validate.csv"
-    random_data = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_random_validate.csv"
+    data_path = "/home/cshah/workspaces/deepPhase based work/Data/Full Training - Gyro + Joint Angles/Quat_new_sub2_train.csv"
+    val_path = "/home/cshah/workspaces/deepPhase based work/Data/Full Training - Gyro + Joint Angles/Quat_new_sub2_val.csv"
+    
+    # treadmill_walking_data = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_TW_validate.csv"
+    # walking_data = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_WA_validate.csv"
+    # squats_data = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_squats_validate.csv"
+    # random_data = "/home/cshah/workspaces/deepPhase based work/Data/07_09_Nicole/07_09_Nicole_random_validate.csv"
   
     
     df = pd.read_csv(data_path)
     val_df = pd.read_csv(val_path)
     
-    treadmill_walking_df = pd.read_csv(treadmill_walking_data)     
-    walking_data_df = pd.read_csv(walking_data)
-    squats_data_df = pd.read_csv(squats_data)
-    random_data_df = pd.read_csv(random_data)
+    # treadmill_walking_df = pd.read_csv(treadmill_walking_data)     
+    # walking_data_df = pd.read_csv(walking_data)
+    # squats_data_df = pd.read_csv(squats_data)
+    # random_data_df = pd.read_csv(random_data)
     
   
     for col in df.columns:
         df[col] = df[col].astype(float)
         
     
+    print(df.shape)
     training_dataset = dataLoader_simple_loader(df, config["seq_length"], config["inputs"], config["outputs"])
     validation_dataset = dataLoader_simple_loader(val_df, config["seq_length"], config["inputs"], config["outputs"])
+    training_dataset_plot = dataLoader_simple_loader(df, config["seq_length"], config["inputs"], config["outputs"])
+    
     
     training_dataloader = DataLoader(training_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=config["num_workers"])
-    validation_dataloader = DataLoader(validation_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=config["num_workers"])
+    training_dataloader_plot = DataLoader(training_dataset_plot, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
     
-    treadmill_walking_dataset = dataLoader_simple_loader(treadmill_walking_df, config["seq_length"], config["inputs"], config["outputs"])
-    walking_dataset = dataLoader_simple_loader(walking_data_df, config["seq_length"], config["inputs"], config["outputs"])
-    squats_dataset = dataLoader_simple_loader(squats_data_df, config["seq_length"], config["inputs"], config["outputs"])
-    random_dataset = dataLoader_simple_loader(random_data_df, config["seq_length"], config["inputs"], config["outputs"])
+    validation_dataloader = DataLoader(validation_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
+    
+    # treadmill_walking_dataset = dataLoader_simple_loader(treadmill_walking_df, config["seq_length"], config["inputs"], config["outputs"])
+    # walking_dataset = dataLoader_simple_loader(walking_data_df, config["seq_length"], config["inputs"], config["outputs"])
+    # squats_dataset = dataLoader_simple_loader(squats_data_df, config["seq_length"], config["inputs"], config["outputs"])
+    # random_dataset = dataLoader_simple_loader(random_data_df, config["seq_length"], config["inputs"], config["outputs"])
 
-    treadmill_dataloader = DataLoader(treadmill_walking_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
-    walking_dataloader = DataLoader(walking_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
-    squats_dataloader = DataLoader(squats_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
-    random_dataloader = DataLoader(random_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
+    # treadmill_dataloader = DataLoader(treadmill_walking_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
+    # walking_dataloader = DataLoader(walking_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
+    # squats_dataloader = DataLoader(squats_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
+    # random_dataloader = DataLoader(random_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
     
-    
-    
-    
-    
-        
     # training_dataloader_plotting = DataLoader(training_dataset, batch_size=32, shuffle=False, num_workers=1)
     # validation_dataloader_plotting = DataLoader(validation_dataset, batch_size=32, shuffle=False, num_workers=1)
     
@@ -391,7 +404,7 @@ def main():
     #                         config["num_hidden_neurons"],
     #                         0.3))
     
-    model = utility.ToDevice(AutoEncoder(input_dim=4200, output_dim=28, latent_dim=8, num_layers=3, hidden_dim=256, dropout_rate=0.3))
+    model = utility.ToDevice(AutoEncoder(input_dim=4200, output_dim=28, latent_dim=8, num_layers=5, hidden_dim=1024, dropout_rate=0.3))
     
     # model = utility.ToDevice(QuaternionNet(input=7, hidden_dim=64, output=7))
     # model = utility.ToDevice(QVNN_AutoEncoder(in_quats=7, out_quats=7, latent_dim=32))
@@ -401,7 +414,11 @@ def main():
     training_losses, validation_losses = train_model(model=model, config=config, training_dataloader=training_dataloader, 
                                                    validation_dataloader=validation_dataloader, log_wandB=log_wandB)
     
-    plot_results(treadmill_dataloader, walking_dataloader, squats_dataloader, random_dataloader, training_dataloader, validation_dataloader, model)
+    # Save the Model
+    # model_save_location = "Saved Models/" + datetime.now().strftime('%Y%m%d_%H%M') + "_" + config["training_tag"] + ".pth"
+    # torch.save(model.state_dict(), model_save_location)
+    
+    plot_results( training_dataloader_plot, validation_dataloader, model)
     
     # # Save the Model
     # model_save_location = "Saved Models/" + datetime.now().strftime('%Y%m%d_%H%M') + "_" + config["training_tag"] + ".pth"

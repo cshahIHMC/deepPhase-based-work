@@ -85,8 +85,8 @@ def loss_plot(training_losses, validation_losses=None, testing_losses=None, plot
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(plot_name, dpi=300, bbox_inches='tight')
-    # plt.show()
+    # plt.savefig(plot_name, dpi=300, bbox_inches='tight')
+    plt.show()
     
     
 # Fancy plotting function to plot the predictions across the different datasets
@@ -111,7 +111,7 @@ def plot_one_df_prediction(dataloader, model, file_name, imu_joint_map, col_name
     model.eval()
     fig, axs = plt.subplots(3, 8, figsize=(30,10), sharey=True)
     
-    key_list = list(imu_joint_map.keys())
+    # key_list = list(imu_joint_map.keys())
     
     step = 20
     end_plot_timestep = 450
@@ -134,7 +134,7 @@ def plot_one_df_prediction(dataloader, model, file_name, imu_joint_map, col_name
             output_df = pd.DataFrame(output.T.numpy())
             input_df = pd.DataFrame(input.T.numpy())
             
-            for i in range(24):
+            for i in range(21):
                 row = i % 3
                 col = i // 3
                 ax = axs[row, col]
@@ -164,34 +164,35 @@ def plot_one_df_prediction(dataloader, model, file_name, imu_joint_map, col_name
                 
                 # Name of the Sub Plot 
                 
-                if j==0:
-                    joint_name = None
-                    prefix = col_names[i][:4]
+                # if j==0:
+                #     joint_name = None
+                #     prefix = col_names[i][:4]
                     
-                    for k in key_list:
+                #     for k in key_list:
                         
-                        if prefix in k:
-                            joint_name = imu_joint_map[k]
-                            break
+                #         if prefix in k:
+                #             joint_name = imu_joint_map[k]
+                #             break
 
-                    if "_l" in joint_name:
-                        joint_name = joint_name.replace("_l", "")
-                        joint_name = "left " + joint_name
-                    elif "_r" in joint_name:
-                        joint_name = joint_name.replace("_r", "")
-                        joint_name = "right " + joint_name
+                #     if "_l" in joint_name:
+                #         joint_name = joint_name.replace("_l", "")
+                #         joint_name = "left " + joint_name
+                #     elif "_r" in joint_name:
+                #         joint_name = joint_name.replace("_r", "")
+                #         joint_name = "right " + joint_name
 
                     
-                    name = joint_name + " (" + col_names[i] + ")"
-                    ax.set_title(name)
-                    ax.tick_params(labelsize=8)
+                    # name = joint_name + " (" + col_names[i] + ")"
+                name = col_names[i]
+                ax.set_title(name)
+                ax.tick_params(labelsize=8)
             
             
     fig.suptitle(file_name)
 
     plt.tight_layout()
-    # plt.show()
-    plt.savefig(file_name, dpi=300, bbox_inches='tight')
+    plt.show()
+    # plt.savefig(file_name, dpi=300, bbox_inches='tight')
 
 
 
@@ -200,7 +201,7 @@ def cal_validation_loss(model, validation_dataloader, lossFn, lossFn_no_reductio
     model.eval()
     
     val_loss = 0.0
-    individual_losses = np.zeros(24, dtype=np.float32)
+    individual_losses = np.zeros(21, dtype=np.float32)
     
     # Convoluted Signal
     all_latents = []
@@ -253,12 +254,12 @@ def cal_validation_loss(model, validation_dataloader, lossFn, lossFn_no_reductio
     return val_loss, individual_losses, latents_np, signals_np
 
 # Function to calculate the PAE validation loss
-def cal_validation_loss_future_prediction(model, PAE_model, validation_dataloader, lossFn, lossFn_no_reduction):
+def cal_validation_loss_future_prediction(model, PAE_model, validation_dataloader, lossFn, lossFn_no_reduction=None):
     model.eval()
     PAE_model.eval()
     
     val_loss = 0.0
-    individual_losses = np.zeros(6, dtype=np.float32)
+    # individual_losses = np.zeros(6, dtype=np.float32)
     
     with torch.no_grad():
         for batch in validation_dataloader:
@@ -271,14 +272,32 @@ def cal_validation_loss_future_prediction(model, PAE_model, validation_dataloade
             
             flattened_inputs = ToDevice(FCNN_inputs.reshape(FCNN_inputs.shape[0], -1))
 
-
-            phaseInputs = torch.flatten(torch.stack(params, dim=1),1,2) 
-            phaseInputs = phaseInputs[:,:,-1]
+            # params_cat = torch.cat(params, dim=2)
+            # # phaseInputs = params_cat.reshape(params_cat.shape[0], -1)
+            # phase_sin_x = torch.sin(2 * np.pi * params_cat[...,0])
+            # phase_cos_x = torch.cos(2 * np.pi * params_cat[...,0])
             
-            FCNN_combine_inputs = torch.cat((flattened_inputs, phaseInputs), dim=1)
+            # phaseInputs = torch.stack([phase_sin_x, phase_cos_x, params_cat[...,1], params_cat[...,2], params_cat[...,3]], dim=2) 
+ 
+            # phaseInputs = phaseInputs.reshape(phaseInputs.shape[0], -1)
             
-            # Forwards pass
-            y_pred = model(FCNN_combine_inputs)
+            # FCNN_combine_inputs = torch.cat((flattened_inputs, phaseInputs), dim=1)
+            
+            
+             # MANN
+            # y_pred, _ = model(phaseInputs, flattened_inputs)
+            
+            
+            # Forwards pass (Combine data with PAE)
+            # y_pred = model(FCNN_combine_inputs)
+            
+            
+            # 1 Time - Next time step
+            FCNN_inputs = FCNN_inputs.squeeze(-1)
+            y_pred = model(ToDevice(FCNN_inputs))
+            
+            # 20 time step - Predict 1
+            # y_pred = model(flattened_inputs)
             
             # Calculate the loss
             # weightedLoss = weightedMSELossFunction(ypred, groundTruth, conditions)
@@ -288,19 +307,19 @@ def cal_validation_loss_future_prediction(model, PAE_model, validation_dataloade
             # Calculate running loss
             val_loss += loss.item() * PAE_inputs.size(0)
             
-            # Calculate Individual Loss, first across sequence length and then across batches
-            individual_loss = lossFn_no_reduction(ToDevice(FCNN_outputs), y_pred)
-            individual_loss_across_batch = individual_loss.mean(0)
+            # # Calculate Individual Loss, first across sequence length and then across batches
+            # individual_loss = lossFn_no_reduction(ToDevice(FCNN_outputs), y_pred)
+            # individual_loss_across_batch = individual_loss.mean(0)
 
-            individual_losses = individual_losses + ( Item(individual_loss_across_batch).numpy() * FCNN_inputs.size(0))
+            # individual_losses = individual_losses + ( Item(individual_loss_across_batch).numpy() * FCNN_inputs.size(0))
             
 
         val_loss = val_loss / len(validation_dataloader.dataset)
-        individual_losses = individual_losses / len(validation_dataloader.dataset)   
+        # individual_losses = individual_losses / len(validation_dataloader.dataset)   
    
         
         
-    return val_loss, individual_losses
+    return val_loss
 
 # Function to calculate the PAE validation loss
 def cal_val_loss(model, validation_dataloader, lossFn):
