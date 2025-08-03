@@ -10,7 +10,7 @@ import torch.nn as nn
 # It takes in the input of the num of layers, num of hidden units and
 # dropout Rate
 class FCNN(nn.Module):
-    def __init__(self, inputs, outputs, numOfLayers, hiddenDimension, dropoutRate):
+    def __init__(self, inputs, outputs, numOfLayers, hiddenDimension, dropoutRate=0.0):
         super(FCNN, self).__init__()
         
         # Initilize the first layer
@@ -20,6 +20,9 @@ class FCNN(nn.Module):
         # Iterate over and add all the hidden layers
         for _ in range(numOfLayers - 1):
             self.layers.append(nn.Linear(hiddenDimension, hiddenDimension))
+            
+        # Store dropout layer
+        self.dropout = nn.Dropout(p=dropoutRate)
         
         # Add the output Layer
         self.layers.append(nn.Linear(hiddenDimension, outputs))
@@ -27,10 +30,14 @@ class FCNN(nn.Module):
     def forward(self, x):
         
         for layer in self.layers[:-1]:
-            x = x = torch.relu(layer(x))
+            x = torch.relu(layer(x))
+            x = self.dropout(x)
         
         # No activation on the output layer
         x = self.layers[-1](x)
+        
+        # Added this to be consistent with the +1,-1 of the sin cos
+        x = torch.tanh(x)
         return x
         
         

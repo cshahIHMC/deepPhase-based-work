@@ -22,7 +22,7 @@ def parameter_setup(file_name, project_name):
     config = {
         "training_tag": file_name,
         "project_name": project_name,
-        "epochs": 40,
+        "epochs": 50,
         "batch_size": 32,
         "num_workers": 8,
         "momentum":0.9,
@@ -30,8 +30,8 @@ def parameter_setup(file_name, project_name):
         "dropout": 0.0,
         "dataset": "IHMC Senorsuit",
         "seq_length": 301,
-        "inputs": 24,
-        "outputs": 24,
+        "inputs": 21,
+        "outputs": 21,
         "phases": 10,
         "intermediate_channels": 16,
         "training_window": 2.0, # How many seconds of data you are reviewing
@@ -64,56 +64,25 @@ def parameter_setup(file_name, project_name):
     
 
 ## Data Setup - Reads the csv files and add them to datasets
-def setup_datasets(file_path, joint_imu_map, config):
+def setup_datasets(train_file_path, val_file_path, joint_imu_map, config):
     
     # file path to the data
-    csv_path = file_path
+    # csv_path = file_path
 
     # Read the csv file into a pandas data frame
-    data = pd.read_csv(csv_path)
-    
-    
-    # Split the pandas dataframe into a training and validation dataset
-    # data_split = 179580 # 04_21_2025
-    data_split_start = 80427 # 05_08_2025
-    data_split_end = 95427
-    
-    training_range_of_data = list(range(0,data_split_start)) + list(range(data_split_end,len(data)))
-    validation_range_of_data = list(range(data_split_start,data_split_end)) 
-                              
-    
-    training_df = data.iloc[training_range_of_data].reset_index(drop=True)
-    validation_df = data.iloc[validation_range_of_data].reset_index(drop=True)
-    
+    training_df = pd.read_csv(train_file_path)
+    validation_df = pd.read_csv(val_file_path)
+        
     # Checking the Size of the data frame
     print("Training DF size:", training_df.shape)
     print("Validation DF size:", validation_df.shape)
     
-    # Above data frames have the entire dataset
-    # Get only gyro data
-    
-    extracted_training_df = utility.extract_data(training_df, joint_imu_map)
-    extracted_validation_df = utility.extract_data(validation_df, joint_imu_map)
-    
-    ## Data preprocessing
-    # The xsensor data is recorded in deg/sec while microstrain data is recorded in rad/sec.
-    # To make everything consistent we convert the xsensor data to rad/sec
-    col_to_modify = ["R_insole_gyro_x", "R_insole_gyro_y" , "R_insole_gyro_z",
-                     "L_insole_gyro_x", "L_insole_gyro_y" , "L_insole_gyro_z"]
-
-    for col in col_to_modify:
-        extracted_training_df[col] = extracted_training_df[col] * np.pi / 180
-        extracted_validation_df[col] = extracted_validation_df[col] * np.pi / 180
-        # extracted_testing_df[col] = extracted_testing_df[col] * np.pi / 180
-
-    print("Extracted DF size:", extracted_training_df.shape)
-    
     # Setup custom datasets
-    training_dataset = dataLoader_seq_loader(extracted_training_df, config["seq_length"])
-    validation_dataset = dataLoader_seq_loader(extracted_validation_df, config["seq_length"])
+    training_dataset = dataLoader_seq_loader(training_df, config["seq_length"])
+    validation_dataset = dataLoader_seq_loader(validation_df, config["seq_length"])
     
     
-    return training_dataset, validation_dataset, extracted_training_df.columns
+    return training_dataset, validation_dataset, training_df.columns
     
 ## Training Function
 def train_model(model, config, training_dataloader, validation_dataloader, log_wandB=False):
@@ -296,11 +265,11 @@ def plot_model_predictions(training_dataloader, validation_dataloader, model_fil
     utility.plot_predictions(training_dataloader, validation_dataloader, loaded_model, imu_joint_map, folder_name, col_names)
 
 def main():
-    # Logging Flag
+    # Logging False
     log_wandB = True
     # file_name = "trial"
-    file_name = "PAE - sensor suit Walking Data (132000) - seq-length-300, 10 Phases 24x16xembedded channels conv and mean centered"
-    project_name = "PAE - Sensor suit Walking Data - With Future predictions + New Thigh IMU location"
+    file_name = "PAE - Sensor-Suit-Vicon-Data - Sub 1"
+    project_name = "Full Pipeline Training"
     
     # Prediction_Plotting_Slice
     training_prediction_start = 2531
@@ -317,9 +286,10 @@ def main():
         wandb.init( project=project_name, name= config["training_tag"], config=config)
     
     # Data setup
-    data_path = "/home/cshah/workspaces/deepPhase based work/Data/05_08_2025_walking_data.csv"
+    data_path = "/home/cshah/workspaces/deepPhase based work/Data/Full Training - Gyro + Joint Angles/PAE_train_Sub2_reset.csv"
+    val_path = "/home/cshah/workspaces/deepPhase based work/Data/Full Training - Gyro + Joint Angles/PAE_val_Sub2_reset.csv"
     
-    training_dataset, validation_dataset, col_names = setup_datasets( file_path=data_path, joint_imu_map=joint_imu_map, config=config)
+    training_dataset, validation_dataset, col_names = setup_datasets( train_file_path=data_path,  val_file_path=val_path, joint_imu_map=joint_imu_map, config=config)
     
     training_dataloader = DataLoader(training_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=config["num_workers"])
     validation_dataloader = DataLoader(validation_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
