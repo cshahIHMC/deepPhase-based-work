@@ -7,10 +7,11 @@ from torch.utils.data import Dataset, DataLoader
 import torch
 import pandas as pd 
 from sklearn.preprocessing import StandardScaler
+import numpy as np
 
 
 class dataLoader_seq_loader(Dataset):
-    def __init__(self, df, seq_length, PAE_inputs=21, Predictor_inputs=None, predictor_seq_length=None):
+    def __init__(self, df, seq_length, gyro_inputs=21, insole_inputs=6, Predictor_inputs=None, predictor_seq_length=None):
         
         
         # Save all the data
@@ -19,7 +20,19 @@ class dataLoader_seq_loader(Dataset):
         self.predictor_seq_length = predictor_seq_length
         
         # PAE inputs
-        self.PAE_inputs = PAE_inputs
+        self.gyro_inputs = gyro_inputs
+        self.Insole_inputs = insole_inputs
+        
+        self.gyro_df = self.original_df.iloc[:, 0:21]
+        
+        self.insole_df = self.original_df.iloc[:, 42:48]
+
+        # Normalize Insole data (Col Wise)
+        self.insole_data_mean = self.insole_df.mean()
+        self.insole_data_std = self.insole_df.std()
+        self.insole_data_std[self.insole_data_std == 0] = 1
+        
+        self.normalized_insole_df = (self.insole_df - self.insole_data_mean) / self.insole_data_std
         
         # Predictor inputs
         self.Predictor_inputs = Predictor_inputs
@@ -58,7 +71,10 @@ class dataLoader_seq_loader(Dataset):
         row_end_idx = self.indices[idx + self.seq_length]
         
         # Extract all col with that sequence length of data
-        rows = self.original_df.iloc[row_start_idx:row_end_idx, 0:self.PAE_inputs].values
+        gyro_rows = self.gyro_df.iloc[row_start_idx:row_end_idx, : ].values
+        insole_rows = self.normalized_insole_df.iloc[row_start_idx:row_end_idx, : ].values
+        
+        rows = np.hstack((gyro_rows, insole_rows))
                
         # Inputs ( Transpose it to give cols, sequence length data)
         PAE_inputs = torch.tensor(rows, dtype=torch.float32).T

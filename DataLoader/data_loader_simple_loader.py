@@ -34,11 +34,12 @@ def quaternion_to_sincos(flat_quat):
     return sincos.flatten()  # shape: 42,
 
 class dataLoader_simple_loader(Dataset):
-    def __init__(self, df, seq_length, inputs, outputs):
+    def __init__(self, df, gyro_df, seq_length, inputs, outputs):
     
     
         # Save all the data
         self.original_df = df.copy()
+        self.gyro_original_df = gyro_df.copy()
         self.seq_length = seq_length
 
         # inputs
@@ -67,8 +68,25 @@ class dataLoader_simple_loader(Dataset):
         
         self.input_data = self.input_quat_data
         
+        # Gyro data
+        self.gyro_input_data = self.gyro_original_df.iloc[:,0:42]
+        
+        # Normalize the output data
+        self.gyro_input_data_mean = self.gyro_input_data.mean()
+        self.gyro_input_data_std = self.gyro_input_data.std()
+        self.gyro_input_data_std[self.gyro_input_data_std == 0] = 1
+        
+        self.normalized_gyro_input_data = (self.gyro_input_data - self.gyro_input_data_mean) / self.gyro_input_data_std
+        
         # Output data
-        self.output_data = self.original_df.iloc[:, 28:56]
+        self.output_data = self.original_df.iloc[:, 28:]
+        
+        # Normalize the output data
+        self.output_data_mean = self.output_data.mean()
+        self.output_data_std = self.output_data.std()
+        self.output_data_std[self.output_data_std == 0] = 1
+        
+        self.normalized_output_data= (self.output_data - self.output_data_mean) / self.output_data_std
 
         
     def __len__(self):
@@ -77,8 +95,13 @@ class dataLoader_simple_loader(Dataset):
     def __getitem__(self,idx):
         
         
-        input_rows = self.input_data.iloc[idx:idx+self.seq_length, :].values
-        output_rows = self.output_data.iloc[idx+self.seq_length-1, :].values
+        input_quat_rows = self.input_data.iloc[idx:idx+self.seq_length, :].values
+        gyro_input_rows = self.normalized_gyro_input_data.iloc[idx:idx+self.seq_length, :].values
+        
+        input_rows = np.hstack((input_quat_rows, gyro_input_rows))
+
+        
+        output_rows = self.normalized_output_data.iloc[idx+self.seq_length-1, :].values
         
         # Apply quaternion → sin-cos transform across each timestep
         # input_transformed = np.array([quaternion_to_sincos(row) for row in input_rows])   # shape: (seq_len, 42)
@@ -87,8 +110,12 @@ class dataLoader_simple_loader(Dataset):
         
         input_window = torch.tensor(input_rows, dtype=torch.float32)
         output_window = torch.tensor(output_rows,  dtype=torch.float32)
-               
-        input_window = input_window.reshape(1, self.seq_length * self.inputs)
+        
+        # print(input_window.shape)
+        
+        # input_window = input_window.transpose(0,1)      
+        # input_window = input_window.reshape(1, self.seq_length * self.inputs)
+        input_window = input_window.reshape(1, self.seq_length * 70)
         output_window = output_window.unsqueeze(0)
 
         

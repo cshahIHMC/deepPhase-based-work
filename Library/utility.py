@@ -85,18 +85,18 @@ def loss_plot(training_losses, validation_losses=None, testing_losses=None, plot
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    # plt.savefig(plot_name, dpi=300, bbox_inches='tight')
-    plt.show()
+    plt.savefig(plot_name, dpi=300, bbox_inches='tight')
+    # plt.show()
     
     
 # Fancy plotting function to plot the predictions across the different datasets
-def plot_predictions(training_dataloader, validation_dataloader, model, imu_joint_map, folder_name, col_names):
+def plot_predictions(training_dataloader, validation_dataloader, model, folder_name, col_names):
     
     training_file_name = folder_name + "_training_prediction.png"
-    plot_one_df_prediction(training_dataloader, model, training_file_name, imu_joint_map, col_names)
+    plot_one_df_prediction(training_dataloader, model, training_file_name, col_names)
     
     validation_file_name = folder_name + "_validation_prediction.png"
-    plot_one_df_prediction(validation_dataloader, model, validation_file_name, imu_joint_map, col_names) 
+    plot_one_df_prediction(validation_dataloader, model, validation_file_name, col_names) 
 
     
     # file_name = "Plots/testing_prediction.png"
@@ -106,12 +106,10 @@ def plot_predictions(training_dataloader, validation_dataloader, model, imu_join
     
 
 
-def plot_one_df_prediction(dataloader, model, file_name, imu_joint_map, col_names):
+def plot_one_df_prediction(dataloader, model, file_name, col_names):
     
     model.eval()
     fig, axs = plt.subplots(3, 8, figsize=(30,10), sharey=True)
-    
-    # key_list = list(imu_joint_map.keys())
     
     step = 20
     end_plot_timestep = 450
@@ -160,7 +158,7 @@ def plot_one_df_prediction(dataloader, model, file_name, imu_joint_map, col_name
                     ax.plot(dataloader.dataset.indices[start_index:end_index], input_df.iloc[:end_index, i], linewidth=1, color="black")  # Plot the i-th column
                 
                 
-                ax.set_ylim(-10,8)
+                # ax.set_ylim(-10,8)
                 
                 # Name of the Sub Plot 
                 
@@ -191,8 +189,8 @@ def plot_one_df_prediction(dataloader, model, file_name, imu_joint_map, col_name
     fig.suptitle(file_name)
 
     plt.tight_layout()
-    plt.show()
-    # plt.savefig(file_name, dpi=300, bbox_inches='tight')
+    # plt.show()
+    plt.savefig(file_name, dpi=300, bbox_inches='tight')
 
 
 
@@ -201,7 +199,7 @@ def cal_validation_loss(model, validation_dataloader, lossFn, lossFn_no_reductio
     model.eval()
     
     val_loss = 0.0
-    individual_losses = np.zeros(21, dtype=np.float32)
+    individual_losses = np.zeros(27, dtype=np.float32)
     
     # Convoluted Signal
     all_latents = []
@@ -332,14 +330,18 @@ def cal_val_loss(model, validation_dataloader, lossFn):
             
             inputs, outputs = batch
             
+            # inputs = inputs.squeeze(1)  # Now shape is (B, 28)
+            # inputs = inputs.view(inputs.size(0), 7, 4)  # Now shape is (B, 7, 4)
+            
             # Forwards pass
             y_pred = model(ToDevice(inputs))
-
+            # y_pred, mu, logvar = model(ToDevice(inputs))
             # y_pred = y_pred.view(-1, 7, 4)
             # outputs = outputs.view(-1, 7, 4)
             
             # Calculate the loss
-            loss = lossFn(y_pred,ToDevice(outputs))
+            loss  = lossFn(y_pred, ToDevice(outputs))
+            # loss, recon_loss, kl_loss = lossFn(y_pred, ToDevice(outputs.squeeze(1)), mu, logvar, beta=0.5)
 
             
             # Calculate running loss

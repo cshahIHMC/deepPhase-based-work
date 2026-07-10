@@ -22,7 +22,7 @@ def parameter_setup(file_name, project_name):
     config = {
         "training_tag": file_name,
         "project_name": project_name,
-        "epochs": 50,
+        "epochs": 30,
         "batch_size": 32,
         "num_workers": 8,
         "momentum":0.9,
@@ -30,41 +30,18 @@ def parameter_setup(file_name, project_name):
         "dropout": 0.0,
         "dataset": "IHMC Senorsuit",
         "seq_length": 301,
-        "inputs": 21,
-        "outputs": 21,
+        "inputs": 27,
+        "outputs": 27,
         "phases": 10,
         "intermediate_channels": 16,
         "training_window": 2.0, # How many seconds of data you are reviewing
         "data_recorded_rate": 150 # 
     }
-    
-    joint_imu_map = {
-    "back": "imu3",
-    "pelvis": "imu2",
-    "thigh_l": "imu1",
-    "thigh_r": "imu5", 
-    "shank_l": "imu4",
-    "shank_r": "imu6",
-    "foot_l": "L_insole",
-    "foot_r": "R_insole"
-    }
-
-    imu_joint_map = {
-        "imu3": "back",
-        "imu2": "pelvis",
-        "imu1": "thigh_l",
-        "imu5": "thigh_r", 
-        "imu4": "shank_l",
-        "imu6": "shank_r",
-        "L_insole": "foot_l",
-        "R_insole": "foot_r"
-    }
-    
-    return config, joint_imu_map, imu_joint_map
+    return config
     
 
 ## Data Setup - Reads the csv files and add them to datasets
-def setup_datasets(train_file_path, val_file_path, joint_imu_map, config):
+def setup_datasets(train_file_path, val_file_path, config):
     
     # file path to the data
     # csv_path = file_path
@@ -118,6 +95,11 @@ def train_model(model, config, training_dataloader, validation_dataloader, log_w
     testing_losses = []
 
     epochs = config["epochs"]
+    
+    # Input data shape
+    for batch in training_dataloader:
+        print(batch.shape)
+        break
 
 
     ## Training Loop
@@ -129,7 +111,7 @@ def train_model(model, config, training_dataloader, validation_dataloader, log_w
         
             PAE_inputs = batch
             PAE_inputs = utility.ToDevice(PAE_inputs)
-        
+
             # Zero the parameter gradients
             optimizer.zero_grad()
         
@@ -217,7 +199,6 @@ def train_model(model, config, training_dataloader, validation_dataloader, log_w
             # plt.gcf().canvas.start_event_loop(1e-5)
             # #End Visualization Section
             
-        
         train_loss = running_loss / len(training_dataloader.dataset)
         training_losses.append(train_loss)
         print(f'Epoch [{epoch+1}/{epochs}], Training Loss: {train_loss}')
@@ -250,7 +231,7 @@ def train_model(model, config, training_dataloader, validation_dataloader, log_w
     return training_losses, validation_losses
 
 
-def plot_model_predictions(training_dataloader, validation_dataloader, model_file, imu_joint_map, config, col_names, folder_name):
+def plot_model_predictions(training_dataloader, validation_dataloader, model_file, config, col_names, folder_name):
     
     weights = torch.load(model_file, weights_only=True)
     loaded_model = PAE.Model(
@@ -262,13 +243,13 @@ def plot_model_predictions(training_dataloader, validation_dataloader, model_fil
                          )
     loaded_model.load_state_dict(weights)
     
-    utility.plot_predictions(training_dataloader, validation_dataloader, loaded_model, imu_joint_map, folder_name, col_names)
+    utility.plot_predictions(training_dataloader, validation_dataloader, loaded_model, folder_name, col_names)
 
 def main():
     # Logging False
     log_wandB = True
     # file_name = "trial"
-    file_name = "PAE - Sensor-Suit-Vicon-Data - Sub 1"
+    file_name = "PAE - Sensor-Suit-Vicon-Data - Sub 1 - 10 phases"
     project_name = "Full Pipeline Training"
     
     # Prediction_Plotting_Slice
@@ -277,7 +258,7 @@ def main():
     
         
     # Setup all the system paramters
-    config, joint_imu_map, imu_joint_map = parameter_setup( file_name=file_name, project_name=project_name)
+    config = parameter_setup( file_name=file_name, project_name=project_name)
     
     ## Login to weights and biases and setup the data recording run
     if log_wandB:
@@ -286,15 +267,14 @@ def main():
         wandb.init( project=project_name, name= config["training_tag"], config=config)
     
     # Data setup
-    data_path = "/home/cshah/workspaces/deepPhase based work/Data/Full Training - Gyro + Joint Angles/PAE_train_Sub2_reset.csv"
-    val_path = "/home/cshah/workspaces/deepPhase based work/Data/Full Training - Gyro + Joint Angles/PAE_val_Sub2_reset.csv"
+    data_path = "/home/cshah/workspaces/deepPhase based work/Data/Vicon_SS_Data_trial/train/PAE_Vicon_train.csv"
+    val_path = "/home/cshah/workspaces/deepPhase based work/Data/Vicon_SS_Data_trial/validate/PAE_Vicon_val.csv"
     
-    training_dataset, validation_dataset, col_names = setup_datasets( train_file_path=data_path,  val_file_path=val_path, joint_imu_map=joint_imu_map, config=config)
+    training_dataset, validation_dataset, col_names = setup_datasets( train_file_path=data_path,  val_file_path=val_path, config=config)
     
     training_dataloader = DataLoader(training_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=config["num_workers"])
     validation_dataloader = DataLoader(validation_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=config["num_workers"])
-    
-    
+       
     # Taking a subset of the training and validation to plot a window / slice of data
     training_dataset_plotting = Subset(training_dataset, range(training_prediction_start, training_prediction_start+900))
     validation_dataset_plotting = Subset(validation_dataset, range(validation_prediction_start, validation_prediction_start+900))
@@ -336,7 +316,7 @@ def main():
     model_file = model_save_location
     # model_file = "/home/cshah/workspaces/deepPhase based work/Saved Models/20250424_1118_PAE - sensor suit Walking Data - seq-length-300, 8 Phases and mean centered.pth"
     
-    plot_model_predictions(training_dataloader_plotting, validation_dataloader_plotting, model_file, imu_joint_map, config, col_names, plot_save_location)
+    plot_model_predictions(training_dataloader_plotting, validation_dataloader_plotting, model_file, config, col_names, plot_save_location)
     
     
     # End wandB logging
